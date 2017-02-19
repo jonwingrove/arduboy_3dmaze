@@ -16,6 +16,17 @@ const byte maze[64] PROGMEM = {
   1, 1, 1, 1, 1, 1, 1, 1
 };
 
+const byte sprite[64] PROGMEM = {
+  0, 0, 0, 2, 2, 0, 0, 0,
+  0, 2, 2, 1, 1, 2, 2, 0,
+  2, 1, 1, 1, 1, 1, 1, 2,
+  0, 2, 2, 1, 1, 2, 0, 0,
+  0, 0, 2, 1, 1, 2, 0, 0,
+  0, 2, 1, 2, 2, 1, 2, 0,
+  0, 2, 1, 2, 2, 1, 2, 0,
+  0, 0, 2, 2, 0, 2, 0, 0
+};
+
 const fix16_t sinTab[180] PROGMEM = {
 0,1143,2287,3429,4571,5711,6850,7986,9120,10252,11380,12504,13625,14742,15854,16961,18064,19160,20251,21336,22414,23486,24550,25606,26655,27696,28729,29752,30767,31772,-32768,-31783,-30808,-29843,-28889,-27947,-27015,-26096,-25188,-24293,-23411,-22541,-21684,-20841,-20011,-19196,-18394,-17606,-16834,-16076,-15333,-14605,-13893,-13197,-12517,-11853,-11205,-10573,-9959,-9361,-8781,-8217,-7672,-7143,-6633,-6141,-5666,-5210,-4773,-4353,-3953,-3571,-3208,-2864,-2539,-2234,-1947,-1680,-1433,-1205,-996,-807,-638,-489,-360,-250,-160,-90,-40,-10,
 -1,-10,-40,-90,-160,-250,-360,-489,-638,-807,-996,-1205,-1433,-1680,-1947,-2234,-2539,-2864,-3208,-3571,-3953,-4353,-4773,-5210,-5666,-6141,-6633,-7144,-7672,-8217,-8781,-9361,-9959,-10573,-11205,-11853,-12517,-13197,-13893,-14606,-15333,-16076,-16834,-17607,-18394,-19196,-20011,-20841,-21684,-22541,-23411,-24293,-25189,-26096,-27015,-27947,-28889,-29843,-30808,-31783,32767,31772,30767,29752,28729,27696,26655,25606,24550,23485,22414,21336,20251,19160,18064,16961,15854,14742,13625,12504,11380,10252,9120,7986,6850,5711,4571,3429,2287,1143
@@ -32,6 +43,13 @@ class vec2
       m_x = x;
       m_y = y;
     }
+};
+
+class spriteObject
+{
+  public:
+    fix16_t m_position;
+    int m_sprite;
 };
 
 float s_maxDist = fix16_one * 9999;
@@ -175,7 +193,7 @@ int m_playerAngDegrees = 0;
 void setup() {
   // put your setup code here, to run once:
   arduboy.begin();
-  arduboy.setFrameRate(40);
+  arduboy.setFrameRate(30);
   arduboy.initRandomSeed();
 
   m_playerPos = vec2(fix16_from_float(1.3f),fix16_from_float(1.4f));
@@ -222,6 +240,48 @@ void testSin()
   }
 }
 
+int depths[128];
+
+void drawSprite(int xPos, int ssize)
+{
+  int startX = xPos-ssize;
+  int endX = xPos+ssize;
+  int startY = 32-ssize;
+  int endY = 32+ssize;
+
+  fix16_t incPerPix = fix16_div((fix16_one*8), (ssize*2*fix16_one));
+  fix16_t u = 0;
+  fix16_t v = 0;
+
+  for(int x = startX; x < endX; ++x)
+  {
+    if(ssize >= depths[x])
+    {
+      v = 0;
+      int ui = fix16_to_int(fix16_floor(u));
+      for(int y = startY; y < endY; ++y)
+      {
+        int vi = fix16_to_int(fix16_floor(v));
+        if(ui < 8 && vi < 8)
+        {
+          int pixCol = pgm_read_byte_near(sprite + (ui+vi*8));
+          if(pixCol == 1)
+          {
+            arduboy.drawPixel(x,y,1);
+          }
+          else if(pixCol ==2)
+          {
+            arduboy.drawPixel(x,y,0);
+          }
+        }
+        v = fix16_add(v,incPerPix);
+      }
+    }
+    u = fix16_add(u,incPerPix);
+  }
+}
+
+
 void drawShadedBox(int x1, int y1, int x2, int y2, int shade)
 {
   if(shade <= 1)
@@ -232,11 +292,13 @@ void drawShadedBox(int x1, int y1, int x2, int y2, int shade)
   {
     for(int dx=x1; dx < x2; ++dx)
     {
+      arduboy.drawPixel(dx,y1,1);
+      arduboy.drawPixel(dx,y2,1);
       for(int dy=y1+(dx%shade);dy<y2; dy+=shade)
       {
         arduboy.drawPixel(dx,dy,1);
       }
-    }
+    }    
   }
 }
 
@@ -245,7 +307,7 @@ void maingame()
 
   float dist = castRay(m_playerPos, 0, 4);
   float fovDegrees = 60;
-  int sliceWidth = 3;
+  int sliceWidth = 2;
 
   for(int x = 0; x < 128; x+=sliceWidth)
   {    
@@ -261,12 +323,16 @@ void maingame()
     if(z > 0)
     {
       fix16_t wallHeight = fix16_div(16 * fix16_one, z);              
-      wallHeightI = fix16_to_int(wallHeight);
+      wallHeightI = min(fix16_to_int(wallHeight),32);
     }
     
     int zInt = fix16_to_int(z);
+    depths[x] = wallHeightI;
+    depths[x+1] = wallHeightI;
     drawShadedBox(x,32-wallHeightI,x+sliceWidth,32+wallHeightI,zInt);
   }
+
+  //drawSprite(64,16+i);
 
   if(arduboy.pressed(LEFT_BUTTON))
   {
