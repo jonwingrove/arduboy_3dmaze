@@ -1,3 +1,4 @@
+#define FIXMATH_NO_CACHE
 #include <limits.h>
 #include "fix16.h"
 

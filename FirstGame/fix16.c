@@ -1,6 +1,7 @@
 #include "fix16.h"
 #include "int64.h"
 
+#define FIXMATH_NO_ROUNDING
 
 /* Subtraction and addition with overflow detection.
  * The versions without overflow detection are inlined in the header.

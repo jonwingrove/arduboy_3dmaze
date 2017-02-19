@@ -1,5 +1,6 @@
 #include <Arduboy2.h>
 #include <avr/pgmspace.h>
+#include "fix16.h"
 
 Arduboy2 arduboy;
 
@@ -15,7 +16,10 @@ const byte maze[64] PROGMEM = {
   1, 1, 1, 1, 1, 1, 1, 1
 };
 
-//int cosTab[360];
+const fix16_t sinTab[180] PROGMEM = {
+0,1143,2287,3429,4571,5711,6850,7986,9120,10252,11380,12504,13625,14742,15854,16961,18064,19160,20251,21336,22414,23486,24550,25606,26655,27696,28729,29752,30767,31772,-32768,-31783,-30808,-29843,-28889,-27947,-27015,-26096,-25188,-24293,-23411,-22541,-21684,-20841,-20011,-19196,-18394,-17606,-16834,-16076,-15333,-14605,-13893,-13197,-12517,-11853,-11205,-10573,-9959,-9361,-8781,-8217,-7672,-7143,-6633,-6141,-5666,-5210,-4773,-4353,-3953,-3571,-3208,-2864,-2539,-2234,-1947,-1680,-1433,-1205,-996,-807,-638,-489,-360,-250,-160,-90,-40,-10,
+-1,-10,-40,-90,-160,-250,-360,-489,-638,-807,-996,-1205,-1433,-1680,-1947,-2234,-2539,-2864,-3208,-3571,-3953,-4353,-4773,-5210,-5666,-6141,-6633,-7144,-7672,-8217,-8781,-9361,-9959,-10573,-11205,-11853,-12517,-13197,-13893,-14606,-15333,-16076,-16834,-17607,-18394,-19196,-20011,-20841,-21684,-22541,-23411,-24293,-25189,-26096,-27015,-27947,-28889,-29843,-30808,-31783,32767,31772,30767,29752,28729,27696,26655,25606,24550,23485,22414,21336,20251,19160,18064,16961,15854,14742,13625,12504,11380,10252,9120,7986,6850,5711,4571,3429,2287,1143
+};
 
 class vec2
 {
@@ -51,23 +55,56 @@ class vecStep
         fix16_sub(fix16_floor(fix16_add(x, fix16_one)), x) : 
         fix16_sub(fix16_ceil(fix16_sub(x, fix16_one)), x);
         
-        fix16_t dy = fix16_mult(dx, fix16_div(rise, runn));
+        fix16_t dy = fix16_mul(dx, fix16_div(rise, runn));
 
         m_x = inverted ? fix16_add(y, dy) : fix16_add(x, dx);
         m_y = inverted ? fix16_add(x, dx) : fix16_add(y, dy);
-        m_lengthSquared = fix16_add(fix16_mult(dx, dx), fix16_mult(dy * dy));
+        m_lengthSquared = fix16_add(fix16_mul(dx, dx), fix16_mul(dy, dy));
       }
     }
 };
 
-float castRay(vec2 pos, fix16_t angle, fix16_t range)
-{
-  fix16_t sinA = sin(angle);
-  fix16_t cosA = cos(angle);
 
-  float distance = 0;
-  float x = pos.m_x;
-  float y = pos.m_y;
+fix16_t fastSin(int angDegrees)
+{
+  if(angDegrees < 0)
+  {
+    angDegrees+=360;
+  }
+  if(angDegrees > 360)
+  {
+    angDegrees-=360;
+  }
+  if(angDegrees > 180)
+  {
+    return fix16_sub(0,pgm_read_word_near(sinTab +(angDegrees)%180));
+  }
+  else
+  {
+    return pgm_read_word_near(sinTab +(angDegrees)%180);
+  }
+}
+
+fix16_t fastCos(int angDegrees)
+{
+  return fastSin(angDegrees+90);
+}
+
+fix16_t slowSqrt(fix16_t val)
+{
+  float v = fix16_to_float(val);
+  float sqr = sqrt(v);
+  return fix16_from_float(sqr);
+}
+
+fix16_t castRay(vec2 pos, int angle, fix16_t range)
+{
+  fix16_t sinA = fastSin(angle);
+  fix16_t cosA = fastCos(angle);
+
+  fix16_t distance = 0;
+  fix16_t x = pos.m_x;
+  fix16_t y = pos.m_y;
 
   while (true)
   {
@@ -78,12 +115,12 @@ float castRay(vec2 pos, fix16_t angle, fix16_t range)
     if(stepX.m_lengthSquared < stepY.m_lengthSquared)
     {
       // this is 'coz at 1,0 going left, we're really looking to see what is in 0,0- looking at edges...
-      int dx = cosA < 0 ? 1 : 0;
+      fix16_t dx = cosA < 0 ? fix16_one : 0;
 
-      fix16_t mapX = stepX.m_x - dx;
+      fix16_t mapX = fix16_sub(stepX.m_x, dx);
       fix16_t mapY = stepX.m_y;
 
-      distance += sqrt(stepX.m_lengthSquared);
+      distance = fix16_add(distance, fix16_sqrt(stepX.m_lengthSquared));
       x = stepX.m_x;
       y = stepX.m_y;
 
@@ -95,12 +132,12 @@ float castRay(vec2 pos, fix16_t angle, fix16_t range)
     }
     else
     {
-      int dy = sinA < 0 ? 1 : 0;
+      fix16_t dy = sinA < 0 ? fix16_one : 0;
 
       fix16_t mapX = stepY.m_x;
-      fix16_t mapY = stepY.m_y - dy;
+      fix16_t mapY = fix16_sub(stepY.m_y, dy);
 
-      distance += sqrt(stepY.m_lengthSquared);
+      distance = fix16_add(distance, fix16_sqrt(stepY.m_lengthSquared));
       x = stepY.m_x;
       y = stepY.m_y;
 
@@ -120,8 +157,8 @@ float castRay(vec2 pos, fix16_t angle, fix16_t range)
 
 int getMap(fix16_t x, fix16_t y)
 {
-  int ix = floor(x);
-  int iy = floor(y);
+  int ix = fix16_to_int(fix16_floor(x));
+  int iy = fix16_to_int(fix16_floor(y));
   if (ix < 0 || iy < 0 || ix >= mazeSize || iy >= mazeSize)
   {
     return 1;
@@ -133,8 +170,7 @@ int getMap(fix16_t x, fix16_t y)
 }
 
 vec2 m_playerPos = vec2(1.3f,1.4f);
-float m_playerAngDegrees = 0;
-float m_fovDegrees = 60;
+int m_playerAngDegrees = 0;
 
 void setup() {
   // put your setup code here, to run once:
@@ -142,7 +178,7 @@ void setup() {
   arduboy.setFrameRate(40);
   arduboy.initRandomSeed();
 
-  m_playerPos = vec2(1.3f,1.4f);
+  m_playerPos = vec2(fix16_from_float(1.3f),fix16_from_float(1.4f));
 
 }
 
@@ -156,8 +192,10 @@ void drawShadedPixel(int x, int y, int colM)
   }
 }
 
-void loop() {
+void maingame();
+void testSin();
 
+void loop() {
   if (!(arduboy.nextFrame()))
   {
     return;
@@ -165,46 +203,106 @@ void loop() {
 
   arduboy.clear();
 
-  float dist = castRay(m_playerPos, 0, 4);
+  maingame();
+  //testSin();
 
-  for(int x = 0; x < 128; x+=2)
+    arduboy.display();
+}
+
+void testSin()
+{
+  fix16_t neg1 = 0xFFFF0000;//fix16_from_int(-1);
+  fix16_t zero = 0;
+  for(int x = 0; x < 128; ++x)
   {
-    fix16_t angOffset = ((x-64)*(m_fovDegrees/128.0f));
-    fix16_t ang = m_playerAngDegrees+
-              angOffset;
+      //arduboy.drawPixel(x,16+fix16_to_int(fastCos(x*2)*16),1);
+      arduboy.drawPixel(x,32-fix16_to_int(fastSin(x*4)*24),1);
+      arduboy.drawPixel(x,32-fix16_to_int(neg1*24),1);
+      arduboy.drawPixel(x,32-fix16_to_int(zero*24),1);
+  }
+}
 
-    fix16_t dist = castRay(m_playerPos, fix16_deg_to_rad(ang), 4);
-
-    fix16_t z = dist * cos(ANG_TO_RAD(angOffset));
-
-    fix16_t wallHeight = 32;
-    if(z > 0)
+void drawShadedBox(int x1, int y1, int x2, int y2, int shade)
+{
+  if(shade <= 1)
+  {
+    arduboy.fillRect(x1, y1, x2-x1, y2-y1, 1);
+  }
+  else
+  {
+    for(int dx=x1; dx < x2; ++dx)
     {
-      wallHeight = 32/z;              
-    }
-    for(int dx=x; dx < x+2; ++dx)
-    {
-      for(int dy=32-wallHeight;dy<32+wallHeight;++dy)
+      for(int dy=y1+(dx%shade);dy<y2; dy+=shade)
       {
-        drawShadedPixel(dx,dy,(int)(z+1));
+        arduboy.drawPixel(dx,dy,1);
       }
     }
+  }
+}
+
+void maingame()
+{
+
+  float dist = castRay(m_playerPos, 0, 4);
+  float fovDegrees = 60;
+  int sliceWidth = 3;
+
+  for(int x = 0; x < 128; x+=sliceWidth)
+  {    
+    int angOffsetDegrees = (x-64)/2;
+   
+    int angDegrees = m_playerAngDegrees + angOffsetDegrees;
+
+    fix16_t dist = castRay(m_playerPos, angDegrees, fix16_one * 4);
+
+    fix16_t z = fix16_mul(dist, fastCos(angOffsetDegrees));
+
+    int wallHeightI = 32;
+    if(z > 0)
+    {
+      fix16_t wallHeight = fix16_div(16 * fix16_one, z);              
+      wallHeightI = fix16_to_int(wallHeight);
+    }
+    
+    int zInt = fix16_to_int(z);
+    drawShadedBox(x,32-wallHeightI,x+sliceWidth,32+wallHeightI,zInt);
   }
 
   if(arduboy.pressed(LEFT_BUTTON))
   {
-    m_playerAngDegrees-=4;
+    m_playerAngDegrees -=4;
+    if(m_playerAngDegrees < 0)
+    {
+      m_playerAngDegrees+=360;
+    }
   }
   if(arduboy.pressed(RIGHT_BUTTON))
   {
-    m_playerAngDegrees+=4;
+    m_playerAngDegrees +=4;
+    if(m_playerAngDegrees > 360)
+    {
+      m_playerAngDegrees-=360;
+    }
   }
   if(arduboy.pressed(UP_BUTTON))
   {
-    fix16_t sinA = fix16_sin(fix16_deg_to_rad(m_playerAngDegrees));
-    fix16_t cosA = fix16_cos(fix16_deg_to_rad(m_playerAngDegrees));
-    fix16_t newX = m_playerPos.m_x+cosA*0.2f;
-    fix16_t newY = m_playerPos.m_y+sinA*0.2f;
+    fix16_t sinA = fastSin(m_playerAngDegrees);
+    fix16_t cosA = fastCos(m_playerAngDegrees);
+    fix16_t newX = fix16_add(m_playerPos.m_x,fix16_div(cosA, fix16_one*5));
+    fix16_t newY = fix16_add(m_playerPos.m_y,fix16_div(sinA, fix16_one*5));
+
+    if(getMap(newX,newY) == 0)
+    {
+      m_playerPos.m_x = newX;
+      m_playerPos.m_y = newY;
+    }    
+  }
+  if(arduboy.pressed(DOWN_BUTTON))
+  {
+    fix16_t sinA = fastSin(m_playerAngDegrees);
+    fix16_t cosA = fastCos(m_playerAngDegrees);
+    fix16_t newX = fix16_sub(m_playerPos.m_x,fix16_div(cosA, fix16_one*5));
+    fix16_t newY = fix16_sub(m_playerPos.m_y,fix16_div(sinA, fix16_one*5));
 
     if(getMap(newX,newY) == 0)
     {
@@ -213,8 +311,7 @@ void loop() {
     }    
   }
 
-  i = (i+1)%128;
+  i = (i+1)%4;
   arduboy.drawPixel(i,0,1);
 
-  arduboy.display();
 }
