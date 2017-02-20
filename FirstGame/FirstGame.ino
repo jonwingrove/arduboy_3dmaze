@@ -16,15 +16,23 @@ const byte maze[64] PROGMEM = {
   1, 1, 1, 1, 1, 1, 1, 1
 };
 
-const byte sprite[64] PROGMEM = {
-  0, 0, 0, 2, 2, 0, 0, 0,
-  0, 2, 2, 1, 1, 2, 2, 0,
-  2, 1, 1, 1, 1, 1, 1, 2,
-  0, 2, 2, 1, 1, 2, 0, 0,
-  0, 0, 2, 1, 1, 2, 0, 0,
-  0, 2, 1, 2, 2, 1, 2, 0,
-  0, 2, 1, 2, 2, 1, 2, 0,
-  0, 0, 2, 2, 0, 2, 0, 0
+const byte sprite[256] PROGMEM = {
+0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,
+0,0,0,0,1,0,1,1,1,1,0,1,0,0,0,0,
+0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,
+0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,
+0,0,0,1,0,1,2,1,2,1,1,0,0,0,0,0,
+0,0,0,1,0,1,1,1,1,1,1,0,0,0,0,0,
+0,0,0,1,0,1,1,1,1,1,1,0,0,0,0,0,
+0,0,0,1,0,1,1,1,1,1,0,1,1,1,0,0,
+0,0,1,1,1,0,1,1,1,1,0,1,1,1,0,0,
+0,0,0,1,1,0,1,1,1,1,0,1,1,1,0,0,
+0,0,0,0,0,0,1,1,1,1,0,1,1,1,0,0,
+0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,
+0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,
+0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,
+0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,
+0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0
 };
 
 const fix16_t sinTab[180] PROGMEM = {
@@ -61,24 +69,40 @@ class vecStep
     fix16_t m_y;
     fix16_t m_lengthSquared;
 
+    fix16_t m_riseDivRunn;
+    bool m_inverted;
+    fix16_t m_runn;
+
     vecStep(fix16_t rise, fix16_t runn, fix16_t x, fix16_t y, bool inverted)
     {
       if (runn == 0)
       {
+        m_runn = 0;
         m_lengthSquared = s_maxDist;
       }
       else
       {
-        fix16_t dx = runn > 0 ? 
-        fix16_sub(fix16_floor(fix16_add(x, fix16_one)), x) : 
-        fix16_sub(fix16_ceil(fix16_sub(x, fix16_one)), x);
-        
-        fix16_t dy = fix16_mul(dx, fix16_div(rise, runn));
-
-        m_x = inverted ? fix16_add(y, dy) : fix16_add(x, dx);
-        m_y = inverted ? fix16_add(x, dx) : fix16_add(y, dy);
-        m_lengthSquared = fix16_add(fix16_mul(dx, dx), fix16_mul(dy, dy));
+        m_runn = runn;
+        m_riseDivRunn = fix16_div(rise, runn);
+        m_inverted = inverted;
+        update(x,y);        
       }
+    }
+
+    void update(fix16_t x, fix16_t y)
+    {
+        if(m_runn != 0)
+        {
+          fix16_t dx = m_runn > 0 ? 
+          fix16_sub(fix16_floor(fix16_add(x, fix16_one)), x) : 
+          fix16_sub(fix16_ceil(fix16_sub(x, fix16_one)), x);
+          
+          fix16_t dy = fix16_mul(dx, m_riseDivRunn);
+  
+          m_x = m_inverted ? fix16_add(y, dy) : fix16_add(x, dx);
+          m_y = m_inverted ? fix16_add(x, dx) : fix16_add(y, dy);
+          m_lengthSquared = fix16_add(fix16_mul(dx, dx), fix16_mul(dy, dy));
+        }
     }
 };
 
@@ -124,11 +148,11 @@ fix16_t castRay(vec2 pos, int angle, fix16_t range)
   fix16_t x = pos.m_x;
   fix16_t y = pos.m_y;
 
+  vecStep stepX = vecStep(sinA, cosA, x, y, false);
+  vecStep stepY = vecStep(cosA, sinA, y, x, true);
+
   while (true)
   {
-
-    vecStep stepX = vecStep(sinA, cosA, x, y, false);
-    vecStep stepY = vecStep(cosA, sinA, y, x, true);
 
     if(stepX.m_lengthSquared < stepY.m_lengthSquared)
     {
@@ -139,14 +163,15 @@ fix16_t castRay(vec2 pos, int angle, fix16_t range)
       fix16_t mapY = stepX.m_y;
 
       distance = fix16_add(distance, fix16_sqrt(stepX.m_lengthSquared));
-      x = stepX.m_x;
-      y = stepX.m_y;
 
       int mapAtPos = getMap(mapX, mapY);
       if(mapAtPos == 1)
       {
         return distance;
       }
+
+      x = stepX.m_x;
+      y = stepX.m_y;
     }
     else
     {
@@ -156,16 +181,20 @@ fix16_t castRay(vec2 pos, int angle, fix16_t range)
       fix16_t mapY = fix16_sub(stepY.m_y, dy);
 
       distance = fix16_add(distance, fix16_sqrt(stepY.m_lengthSquared));
-      x = stepY.m_x;
-      y = stepY.m_y;
 
       int mapAtPos = getMap(mapX, mapY);
       if(mapAtPos == 1)
       {
         return distance;
       }
+
+      x = stepY.m_x;
+      y = stepY.m_y;
     }
-    
+
+    stepX.update(x,y);
+    stepY.update(y,x);
+
     if (distance > range)
     {
       return range;
@@ -208,6 +237,10 @@ void drawShadedPixel(int x, int y, int colM)
   {
     arduboy.drawPixel(x,y,1);
   }
+  else
+  {
+    arduboy.drawPixel(x,y,0);
+  }
 }
 
 void maingame();
@@ -249,35 +282,52 @@ void drawSprite(int xPos, int ssize)
   int startY = 32-ssize;
   int endY = 32+ssize;
 
-  fix16_t incPerPix = fix16_div((fix16_one*8), (ssize*2*fix16_one));
+  if(endX < 0)
+  {
+    return;
+  }
+  if(startX >= 128)
+  {
+    return;
+  }
+
+  fix16_t incPerPix = fix16_div((fix16_one*16), (ssize*2*fix16_one));
   fix16_t u = 0;
   fix16_t v = 0;
 
   for(int x = startX; x < endX; ++x)
   {
-    if(ssize >= depths[x])
+    if(x >= 0 && x < 128 && ssize >= depths[x])
     {
       v = 0;
       int ui = fix16_to_int(fix16_floor(u));
       for(int y = startY; y < endY; ++y)
       {
         int vi = fix16_to_int(fix16_floor(v));
-        if(ui < 8 && vi < 8)
+        if(ui < 16 && vi < 16)
         {
-          int pixCol = pgm_read_byte_near(sprite + (ui+vi*8));
+          int pixCol = pgm_read_byte_near(sprite + (ui+vi*16));
           if(pixCol == 1)
           {
             arduboy.drawPixel(x,y,1);
           }
-          else if(pixCol ==2)
+          else if(pixCol == -1)
           {
             arduboy.drawPixel(x,y,0);
+          }
+          else if(pixCol != 0)
+          {
+            drawShadedPixel(x,y,pixCol);
           }
         }
         v = fix16_add(v,incPerPix);
       }
     }
     u = fix16_add(u,incPerPix);
+    if(x>=128)
+    {
+      return;
+    }
   }
 }
 
@@ -332,7 +382,7 @@ void maingame()
     drawShadedBox(x,32-wallHeightI,x+sliceWidth,32+wallHeightI,zInt);
   }
 
-  //drawSprite(64,16+i);
+  drawSprite(64,16+i);
 
   if(arduboy.pressed(LEFT_BUTTON))
   {
