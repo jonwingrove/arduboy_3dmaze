@@ -1,6 +1,7 @@
 #include <Arduboy2.h>
 #include <avr/pgmspace.h>
 #include "fix16.h"
+#include "mazegen.h"
 
 Arduboy2 arduboy;
 
@@ -212,7 +213,7 @@ int getMap(fix16_t x, fix16_t y)
   }
   else
   {
-    return pgm_read_byte_near(maze +(ix + (iy * mazeSize)));
+    return get_map(ix,iy,map_0);//  //pgm_read_byte_near(maze +(ix + (iy * mazeSize)));
   }
 }
 
@@ -245,6 +246,8 @@ void drawShadedPixel(int x, int y, int colM)
 
 void maingame();
 void testSin();
+boolean mapGenerated = false;
+int loading = 32;
 
 void loop() {
   if (!(arduboy.nextFrame()))
@@ -254,7 +257,22 @@ void loop() {
 
   arduboy.clear();
 
-  maingame();
+  if(mapGenerated == false)
+  {
+    arduboy.setCursor(0,0);
+    arduboy.print("GENERATING DUNGEON");
+    mapGenerated = genMap();    
+    drawSprite(loading,16+i);
+    loading++;
+    if(loading > 96)
+    {
+      loading=32;
+    }
+  }
+  else
+  { 
+    maingame();
+  }
   //testSin();
 
     arduboy.display();
@@ -354,14 +372,14 @@ void drawShadedBox(int x1, int y1, int x2, int y2, int shade)
 
 void maingame()
 {
-
+boolean test = false;
   float dist = castRay(m_playerPos, 0, 4);
   float fovDegrees = 60;
   int sliceWidth = 2;
 
-  for(int x = 0; x < 128; x+=sliceWidth)
+  for(int x = 0; x < 96; x+=sliceWidth)
   {    
-    int angOffsetDegrees = (x-64)/2;
+    int angOffsetDegrees = (x-48)/2;
    
     int angDegrees = m_playerAngDegrees + angOffsetDegrees;
 
@@ -382,7 +400,7 @@ void maingame()
     drawShadedBox(x,32-wallHeightI,x+sliceWidth,32+wallHeightI,zInt);
   }
 
-  drawSprite(64,16+i);
+  //drawSprite(48,16+i);
 
   if(arduboy.pressed(LEFT_BUTTON))
   {
