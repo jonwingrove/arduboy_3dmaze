@@ -427,27 +427,42 @@ void drawWallSlice(int x1, int y1, int x2, int y2, fix16_t u, int shade)
 {
   fix16_t incPerPix = fix16_div((fix16_one*16), ((y2-y1)*fix16_one));
   fix16_t v = 0;
+  fix16_t startV = 0;
+  if(y1 < 0)
+  {
+    startV = fix16_mul(incPerPix, fix16_from_int(-y1));
+    y1=0;    
+  }
+  if(y2>96)
+  {
+    y2=96;
+  }
 
   int ui = fix16_to_int(u)%16;
-
-  for(int x = x1; x < x2; ++x)
+  int lvi = -1;
+  int pixCol = 0;
+  v = startV;
+  int w = (x2-x1)+1;
+  for(int y = y1; y < y2; y++)
   {
-    if(x >= 0 && x < 128)
+    int vi = fix16_to_int(fix16_floor(v))%16;
+    if(vi != lvi)
     {
-      v = 0;      
-      for(int y = y1; y < y2; y++)
-      {
-        int vi = fix16_to_int(fix16_floor(v))%16;
-        int pixCol = pgm_read_byte_near(brickSprite + (ui+vi*16));
-        if(pixCol != 0)
-        {
-          drawShadedPixel(x,y,pixCol+shade);
-          //arduboy.drawPixel(x,y,pixCol);
-        }
-        
-        v = fix16_add(v,incPerPix);
-      }
+      pixCol = pgm_read_byte_near(brickSprite + (ui+vi*16));
+      lvi = vi;
     }
+    if(pixCol == 1)
+    {
+      //drawShadedPixel(x,y,pixCol+shade);
+      arduboy.drawFastHLine(x1,y,w,1);
+      
+    }
+    else if(pixCol == 2)
+    {
+      arduboy.drawPixel(x1+(y%2),y,pixCol);
+    }
+    
+    v = fix16_add(v,incPerPix);
   }
 }
 
@@ -503,7 +518,7 @@ void maingame()
       if(z > 0)
       {
         fix16_t wallHeight = fix16_div(16 * fix16_one, z);              
-        wallHeightI = min(fix16_to_int(wallHeight),48);
+        wallHeightI = fix16_to_int(wallHeight);
       }
       
       int zInt = fix16_to_int(z);
