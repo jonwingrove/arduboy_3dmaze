@@ -1,7 +1,8 @@
 #define MAPW 40
 #define MAPH 40
 #define MAPS ((MAPW * MAPH) / 8)
-#define ITER 48
+#define ITER_GEN 32
+#define ITER_FIX 8
 
 void clear_map(int a, uint8_t* map) {
   for (uint16_t i = 0; i < MAPS; i++) {
@@ -64,14 +65,10 @@ uint8_t vn(uint8_t x, uint8_t y, uint8_t* map) {
   tmp = y + 1;
   uint8_t yi = (tmp >= MAPH) ? tmp - MAPH : tmp;
 
-  //      if(get_map(xd, yd, map)) m++;
   if (get_map(x, yd, map)) m++;
-  //      if(get_map(xi, yd, map)) m++;
   if (get_map(xd, y, map)) m++;
   if (get_map(xi, y, map)) m++;
-  //      if(get_map(xd, yi, map)) m++;
   if (get_map(x, yi, map)) m++;
-  //      if(get_map(xi, yi, map)) m++;
 
   return m;
 }
@@ -108,25 +105,45 @@ void room(uint8_t x, uint8_t y, uint8_t* map) {
   set_map(false, x + 1, y + 1, map);
 }
 
-
-boolean search_fwd(uint8_t* map_0, uint8_t* map_1) {
-  clear_map(false, map_1);
-  set_map(true, 3, 3, map_1);
-  uint8_t x, y, m, xl, yl, i;
-  xl = 0; yl = 0;
-  for (i = 0; i < ITER; i++) {
+void search_fwd_inner(uint8_t* map_0, uint8_t* map_1, uint8_t* xl, uint8_t* yl, boolean dir) {
+  uint8_t x, y, m;
     for (x = 1; x < MAPW - 1; x++) {
       for (y = 1; y < MAPH - 1; y++) {
         if (get_map(x, y, map_0)) continue;
         m = vn(x, y, map_1);
         if (m > 0) {
-          if (x + y > xl + yl) {
-            xl = x; yl = y;
+          if ((dir && x + y > *xl + *yl)||(!dir && x + y < *xl + *yl)) {
+            *xl = x; *yl = y;
           }
           set_map(true, x, y, map_1);
         }
       }
     }
+}
+void search_back_inner(uint8_t* map_0, uint8_t* map_1, uint8_t* xl, uint8_t* yl, boolean dir) {
+  uint8_t x, y, m;
+    for (x = MAPW - 2; x > 0; x--) {
+      for (y = MAPH - 2; y > 0; y--) {
+        if (get_map(x, y, map_0)) continue;
+        m = vn(x, y, map_1);
+        if (m > 0) {
+          if ((dir && x + y > *xl + *yl)||(!dir && x + y < *xl + *yl)) {
+            *xl = x; *yl = y;
+          }
+          set_map(true, x, y, map_1);
+        }
+      }
+    }
+}
+
+boolean search_fwd(uint8_t* map_0, uint8_t* map_1) {
+  clear_map(false, map_1);
+  set_map(true, 3, 3, map_1);
+  uint8_t xl, yl, i;
+  xl = 0; yl = 0;
+  for (i = 0; i < ITER_FIX; i++) {
+	if(i%2) search_back_inner(map_0, map_1, &xl, &yl, true);
+	else 	search_fwd_inner(map_0, map_1, &xl, &yl, true);
   }
 
   if (MAPW - xl < 4 && MAPH - yl < 4) return true;
@@ -137,21 +154,11 @@ boolean search_fwd(uint8_t* map_0, uint8_t* map_1) {
 boolean search_back(uint8_t* map_0, uint8_t* map_1) {
   clear_map(false, map_1);
   set_map(true, MAPW - 4, MAPH - 4, map_1);
-  uint8_t x, y, m, xl, yl, i;
+  uint8_t xl, yl, i;
   xl = MAPW; yl = MAPH;
-  for (i = 0; i < ITER; i++) {
-    for (x = MAPW - 2; x > 0; x--) {
-      for (y = MAPH - 2; y > 0; y--) {
-        if (get_map(x, y, map_0)) continue;
-        m = vn(x, y, map_1);
-        if (m > 0) {
-          if (x + y < xl + yl) {
-            xl = x; yl = y;
-          }
-          set_map(true, x, y, map_1);
-        }
-      }
-    }
+  for (i = 0; i < ITER_FIX; i++) {
+	if(i%2) search_fwd_inner(map_0, map_1, &xl, &yl, false);
+	else 	search_back_inner(map_0, map_1, &xl, &yl, false);
   }
 
   if (xl < 4 && yl < 4) return true;
@@ -164,43 +171,43 @@ int stage = 0;
 int stage1I = 0;
 boolean stage3Dir = true;
 
-void resetGen()
+void resetGen(uint32_t seed)
 {
   stage = 0;
   stage1I = 0;
   stage3Dir = true;
+ srand(seed);
 }
 
 boolean genMap() {
+//printf("%d\n", stage);
   uint8_t x, y, i;
-  uint32_t seed;
   uint8_t map_1[MAPS];
+
+  i=(rand() % 13) + 4;
 
   if(stage == 0)
   {
     stage1I = 0;
-    
-    seed = 1;
-    srand(seed);
-  
     for (x = 0; x < MAPW; x++) {
       for (y = 0; y < MAPH; y++) {
-        set_map((rand() % 13 == 0), x, y, map_0);
+        set_map((rand() % i == 0), x, y, map_0);
       }
     }
     stage++;
+    stage1I=ITER_GEN - (rand() % 16);
     return false;
     
   }
   else if (stage == 1)
   {
     iterate(map_0, map_1);
-    stage1I++;
-    if(stage1I == ITER)
+    stage1I--;
+    if(stage1I == 0)
     {
       stage++;
-      return false;
     }
+    return false;
   }
   else if(stage == 2)
   {
