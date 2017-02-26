@@ -27,22 +27,22 @@ const byte sprite[256] PROGMEM = {
 };
 
 const byte brickSprite[256] PROGMEM = {
-1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,
-1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,
-1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,2,0,1,1,1,1,1,1,2,
+0,1,1,1,1,1,1,2,0,1,1,1,1,1,1,2,
+0,2,2,2,2,2,2,2,0,2,2,2,2,2,2,2,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,
-1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,
-1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,
+1,1,1,2,0,1,1,1,1,1,1,2,0,1,1,1,
+1,1,1,2,0,1,1,1,1,1,1,2,0,1,1,1,
+2,2,2,2,0,2,2,2,2,2,2,2,0,2,2,2,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,
-1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,
-1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,2,0,1,1,1,1,1,1,2,
+0,1,1,1,1,1,1,2,0,1,1,1,1,1,1,2,
+0,2,2,2,2,2,2,2,0,2,2,2,2,2,2,2,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,
-1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,
-1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,
-1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1
+1,1,1,2,0,1,1,1,1,1,1,2,0,1,1,1,
+1,1,1,2,0,1,1,1,1,1,1,2,0,1,1,1,
+1,1,1,2,0,1,1,1,1,1,1,2,0,1,1,1,
+2,2,2,2,0,2,2,2,2,2,2,2,0,2,2,2
 };
 
 class SpriteObject
@@ -439,7 +439,12 @@ void drawWallSlice(int x1, int y1, int x2, int y2, fix16_t u, int shade)
       {
         int vi = fix16_to_int(fix16_floor(v))%16;
         int pixCol = pgm_read_byte_near(brickSprite + (ui+vi*16));
-        arduboy.drawPixel(x,y,pixCol);
+        if(pixCol != 0)
+        {
+          drawShadedPixel(x,y,pixCol+shade);
+          //arduboy.drawPixel(x,y,pixCol);
+        }
+        
         v = fix16_add(v,incPerPix);
       }
     }
@@ -498,7 +503,7 @@ void maingame()
       if(z > 0)
       {
         fix16_t wallHeight = fix16_div(16 * fix16_one, z);              
-        wallHeightI = min(fix16_to_int(wallHeight),32);
+        wallHeightI = min(fix16_to_int(wallHeight),48);
       }
       
       int zInt = fix16_to_int(z);
@@ -509,7 +514,7 @@ void maingame()
       fix16_t tcX = fix16_mul(part & 0x0000FFFF, fix16_one*16);
       
       //drawShadedBox(x,32-wallHeightI,x+sliceWidth,32+wallHeightI,zInt);
-      drawWallSlice(x,32-wallHeightI,x+sliceWidth,32+wallHeightI,tcX,0);
+      drawWallSlice(x,32-wallHeightI,x+sliceWidth,32+wallHeightI,tcX,zInt/3);
     }
   }
 
