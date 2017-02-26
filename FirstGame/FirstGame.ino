@@ -26,16 +26,45 @@ const byte sprite[256] PROGMEM = {
 0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0
 };
 
-class spriteObject
+const byte brickSprite[256] PROGMEM = {
+1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,
+1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,
+1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,
+1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,
+1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,
+1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1
+};
+
+class SpriteObject
 {
   public:
-    vec2 m_position;
+    Vec2 m_position;
     int m_sprite;
 };
 
 float s_maxDist = fix16_one * 9999;
 
-class vecStep
+class HitResult
+{
+  public:
+    fix16_t m_finalHitDistance;
+    fix16_t m_hitX;
+    fix16_t m_hitY;
+    bool m_isVertical;
+    bool m_hit;
+};
+
+class VecStep
 {
   public:
     fix16_t m_x;
@@ -46,7 +75,7 @@ class vecStep
     bool m_inverted;
     fix16_t m_runn;
 
-    vecStep(fix16_t rise, fix16_t runn, fix16_t x, fix16_t y, bool inverted)
+    VecStep(fix16_t rise, fix16_t runn, fix16_t x, fix16_t y, bool inverted)
     {
       if (runn == 0)
       {
@@ -133,7 +162,7 @@ int getMap(fix16_t x, fix16_t y)
 }
 
 
-fix16_t castRay(vec2 pos, int angle, fix16_t range)
+void castRay(Vec2 pos, int angle, fix16_t range, HitResult* hr)
 {
   fix16_t sinA = fastSin(angle);
   fix16_t cosA = fastCos(angle);
@@ -142,8 +171,8 @@ fix16_t castRay(vec2 pos, int angle, fix16_t range)
   fix16_t x = pos.m_x;
   fix16_t y = pos.m_y;
 
-  vecStep stepX = vecStep(sinA, cosA, x, y, false);
-  vecStep stepY = vecStep(cosA, sinA, y, x, true);
+  VecStep stepX = VecStep(sinA, cosA, x, y, false);
+  VecStep stepY = VecStep(cosA, sinA, y, x, true);
 
   while (true)
   {
@@ -161,7 +190,12 @@ fix16_t castRay(vec2 pos, int angle, fix16_t range)
       int mapAtPos = getMap(mapX, mapY);
       if(mapAtPos == 1)
       {
-        return distance;
+        hr->m_hitX = mapX;
+        hr->m_hitY = mapY;
+        hr->m_isVertical = true;
+        hr->m_finalHitDistance = distance;
+        hr->m_hit = true;
+        return;
       }
 
       x = stepX.m_x;
@@ -179,7 +213,12 @@ fix16_t castRay(vec2 pos, int angle, fix16_t range)
       int mapAtPos = getMap(mapX, mapY);
       if(mapAtPos == 1)
       {
-        return distance;
+        hr->m_hitX = mapX;
+        hr->m_hitY = mapY;
+        hr->m_isVertical = false;
+        hr->m_finalHitDistance = distance;
+        hr->m_hit = true;
+        return;
       }
 
       x = stepY.m_x;
@@ -191,12 +230,13 @@ fix16_t castRay(vec2 pos, int angle, fix16_t range)
 
     if (distance > range)
     {
-      return range;
+      hr->m_hit = false;
+      return;
     }
   }
 }
 
-vec2 m_playerPos = vec2(1.3f,1.4f);
+Vec2 m_playerPos = Vec2(1.3f,1.4f);
 int m_playerAngDegrees = 0;
 
 void setup() {
@@ -205,7 +245,7 @@ void setup() {
   arduboy.setFrameRate(30);
   arduboy.initRandomSeed();
 
-  m_playerPos = vec2(fix16_from_float(1.3f),fix16_from_float(1.4f));
+  m_playerPos = Vec2(fix16_from_float(1.3f),fix16_from_float(1.4f));
   resetGen(5);
 }
 
@@ -213,7 +253,11 @@ int i = 0;
 
 void drawShadedPixel(int x, int y, int colM)
 {
-  if((x+y)%colM == 0)
+  if(colM == 0)
+  {
+    arduboy.drawPixel(x,y,0);
+  }
+  else if(colM != 0 && (x+y)%colM == 0)
   {
     arduboy.drawPixel(x,y,1);
   }
@@ -239,7 +283,7 @@ void loop() {
   if(mapGenerated == false)
   {
     arduboy.setCursor(0,0);
-    arduboy.print("GENERATING DUNGEON");
+    
     mapGenerated = genMap();    
     drawSprite(loading,16+i);
     loading++;
@@ -247,7 +291,15 @@ void loop() {
     {
       loading=32;
     }
-  }
+    if(mapGenerated)
+    {
+      arduboy.print("GENERATED DUNGEON");  
+    }
+    else
+    {
+      arduboy.print("GENERATING DUNGEON");
+    }
+    }
   else
   { 
     maingame();
@@ -349,17 +401,41 @@ void drawShadedBox(int x1, int y1, int x2, int y2, int shade)
   }
 }
 
-int getAngleTo(vec2 pos)
+void drawWallSlice(int x1, int y1, int x2, int y2, fix16_t u, int shade)
 {
-  
+  fix16_t incPerPix = fix16_div((fix16_one*16), ((y2-y1)*fix16_one));
+  fix16_t v = 0;
+
+  int ui = fix16_to_int(u)%16;
+
+  for(int x = x1; x < x2; ++x)
+  {
+    if(x >= 0 && x < 128)
+    {
+      v = 0;      
+      for(int y = y1; y < y2; y++)
+      {
+        int vi = fix16_to_int(fix16_floor(v))%16;
+        int pixCol = pgm_read_byte_near(brickSprite + (ui+vi*16));
+        arduboy.drawPixel(x,y,pixCol);
+        v = fix16_add(v,incPerPix);
+      }
+    }
+  }
+}
+
+
+int getAngleTo(Vec2 pos)
+{
+  return 0;
 }
 
 void maingame()
 {
-boolean test = false;
-  float dist = castRay(m_playerPos, 0, 4);
-  float fovDegrees = 60;
+  boolean test = false;
   int sliceWidth = 2;
+
+  HitResult hitresult;
 
   for(int x = 0; x < 96; x+=sliceWidth)
   {    
@@ -367,21 +443,31 @@ boolean test = false;
    
     int angDegrees = m_playerAngDegrees + angOffsetDegrees;
 
-    fix16_t dist = castRay(m_playerPos, angDegrees, fix16_one * 64);
+    castRay(m_playerPos, angDegrees, fix16_one * 64, &hitresult);
 
-    fix16_t z = fix16_mul(dist, fastCos(angOffsetDegrees));
-
-    int wallHeightI = 32;
-    if(z > 0)
+    if(hitresult.m_hit)
     {
-      fix16_t wallHeight = fix16_div(16 * fix16_one, z);              
-      wallHeightI = min(fix16_to_int(wallHeight),32);
+      fix16_t dist = hitresult.m_finalHitDistance;
+  
+      fix16_t z = fix16_mul(dist, fastCos(angOffsetDegrees));
+  
+      int wallHeightI = 32;
+      if(z > 0)
+      {
+        fix16_t wallHeight = fix16_div(16 * fix16_one, z);              
+        wallHeightI = min(fix16_to_int(wallHeight),32);
+      }
+      
+      int zInt = fix16_to_int(z);
+      depths[x] = wallHeightI;
+      depths[x+1] = wallHeightI;
+  
+      fix16_t part = hitresult.m_isVertical ? hitresult.m_hitY : hitresult.m_hitX;
+      fix16_t tcX = fix16_mul(part & 0x0000FFFF, fix16_one*16);
+      
+      //drawShadedBox(x,32-wallHeightI,x+sliceWidth,32+wallHeightI,zInt);
+      drawWallSlice(x,32-wallHeightI,x+sliceWidth,32+wallHeightI,tcX,0);
     }
-    
-    int zInt = fix16_to_int(z);
-    depths[x] = wallHeightI;
-    depths[x+1] = wallHeightI;
-    drawShadedBox(x,32-wallHeightI,x+sliceWidth,32+wallHeightI,zInt);
   }
 
   for(int x = 0; x < 32; ++x)
