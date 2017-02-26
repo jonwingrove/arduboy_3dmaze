@@ -237,6 +237,8 @@ void castRay(Vec2 pos, int angle, fix16_t range, HitResult* hr)
 }
 
 Vec2 m_playerPos = Vec2(1.3f,1.4f);
+
+Vec2 m_enemyPos = Vec2(4.4f,5.4f);
 int m_playerAngDegrees = 0;
 
 void setup() {
@@ -246,7 +248,8 @@ void setup() {
   arduboy.initRandomSeed();
 
   m_playerPos = Vec2(fix16_from_float(1.3f),fix16_from_float(1.4f));
-  resetGen(5);
+  m_enemyPos = Vec2(fix16_from_float(3.3f),fix16_from_float(3.4f));
+  resetGen(7);
 }
 
 int i = 0;
@@ -285,7 +288,7 @@ void loop() {
     arduboy.setCursor(0,0);
     
     mapGenerated = genMap();    
-    drawSprite(loading,16+i);
+    drawSprite(loading,16,128);
     loading++;
     if(loading > 96)
     {
@@ -297,9 +300,28 @@ void loop() {
     }
     else
     {
-      arduboy.print("GENERATING DUNGEON");
+      if(stage == 0)
+      {
+        arduboy.print("GENERATING DUNGEON 0");
+      }
+      else if(stage == 1)
+      {
+        arduboy.print("GENERATING DUNGEON 1");
+      }
+      else if(stage == 2)
+      {
+        arduboy.print("GENERATING DUNGEON 2");
+      }
+      else if(stage == 3)
+      {
+        arduboy.print("GENERATING DUNGEON 3");
+      }
+      else if(stage == 4)
+      {
+        arduboy.print("GENERATING DUNGEON 4");
+      }
     }
-    }
+  }
   else
   { 
     maingame();
@@ -324,7 +346,7 @@ void testSin()
 
 int depths[128];
 
-void drawSprite(int xPos, int ssize)
+void drawSprite(int xPos, int ssize, int rClip)
 {
   int startX = xPos-ssize;
   int endX = xPos+ssize;
@@ -335,7 +357,7 @@ void drawSprite(int xPos, int ssize)
   {
     return;
   }
-  if(startX >= 128)
+  if(startX >= rClip)
   {
     return;
   }
@@ -373,7 +395,7 @@ void drawSprite(int xPos, int ssize)
       }
     }
     u = fix16_add(u,incPerPix);
-    if(x>=128)
+    if(x>=rClip)
     {
       return;
     }
@@ -425,9 +447,30 @@ void drawWallSlice(int x1, int y1, int x2, int y2, fix16_t u, int shade)
 }
 
 
-int getAngleTo(Vec2 pos)
+AngleSize getAngleDistTo(Vec2 pos, Vec2 viewer, int playerAng)
 {
-  return 0;
+  AngleSize result;
+  fix16_t dx = pos.m_x - viewer.m_x;
+  fix16_t dy = pos.m_y - viewer.m_y;
+
+  fix16_t angle = fix16_atan2(dy,dx);
+
+  fix16_t len = fix16_sqrt(fix16_mul(dx,dx) + fix16_mul(dy,dy));
+  result.m_dist = len;
+  
+  result.m_angle = fix16_to_int(fix16_rad_to_deg(angle));
+  
+  result.m_angle-=playerAng;
+  while(result.m_angle>180)
+  {
+    result.m_angle-=360;
+  }
+  while(result.m_angle<-180)
+  {
+    result.m_angle+=360;
+  }
+  
+  return result;
 }
 
 void maingame()
@@ -439,7 +482,7 @@ void maingame()
 
   for(int x = 0; x < 96; x+=sliceWidth)
   {    
-    int angOffsetDegrees = (x-48)/2;
+    int angOffsetDegrees = (x-48);
    
     int angDegrees = m_playerAngDegrees + angOffsetDegrees;
 
@@ -470,15 +513,37 @@ void maingame()
     }
   }
 
-  for(int x = 0; x < 32; ++x)
+  for(int x = 0; x < MAPW; ++x)
   {
-    for(int y= 0; y <32; ++y)
+    for(int y= 0; y < MAPH; ++y)
     {
       arduboy.drawPixel(x+96,y,getMapI(x,y));
     }
   }
 
-  //drawSprite(48,16+i);
+  int pPosX = fix16_to_int(m_playerPos.m_x);
+  int pPosY = fix16_to_int(m_playerPos.m_y);
+  arduboy.drawPixel(96+pPosX, pPosY, i%2);
+
+  int ePosX = fix16_to_int(m_enemyPos.m_x);
+  int ePosY = fix16_to_int(m_enemyPos.m_y);
+  arduboy.drawPixel(96+ePosX, ePosY, i%2);
+
+  AngleSize toEnemy = getAngleDistTo(m_enemyPos, m_playerPos,m_playerAngDegrees);
+  int xOff = 48+(toEnemy.m_angle);
+  if(xOff>-32 && xOff<128)
+  {
+    fix16_t zte = fix16_mul(toEnemy.m_dist, fastCos(toEnemy.m_angle));
+    int enHeightI = 32;
+    if(zte > 0)
+    {
+      fix16_t enHeight = fix16_div(16 * fix16_one, zte);              
+      enHeightI = min(fix16_to_int(enHeight),32);
+    }
+    drawSprite(xOff,enHeightI,96);
+  }
+
+  //
 
   fix16_t sinA = fastSin(m_playerAngDegrees);
   fix16_t cosA = fastCos(m_playerAngDegrees);
@@ -498,7 +563,7 @@ void maingame()
     }
     else
     {    
-      m_playerAngDegrees -=4;
+      m_playerAngDegrees -=6;
       if(m_playerAngDegrees < 0)
       {
         m_playerAngDegrees+=360;
@@ -520,7 +585,7 @@ void maingame()
     }
     else
     {
-      m_playerAngDegrees +=4;
+      m_playerAngDegrees +=6;
       if(m_playerAngDegrees > 360)
       {
         m_playerAngDegrees-=360;

@@ -10,3 +10,11 @@ class Vec2
       m_y = y;
     }
 };
+
+class AngleSize
+{
+  public:
+    int m_angle;
+    fix16_t m_dist;
+};
+

@@ -92,8 +92,7 @@ void room(uint8_t x, uint8_t y, uint8_t* map) {
   if (x < 2)         x = 2;
   if (y < 2)         y = 2;
   if (x > MAPW - 3)    x = MAPW - 3;
-  if (y > MAPH - 3)    y = MAPH - 3;
-  printf("room at %d, %d\n", x, y);
+  if (y > MAPH - 3)    y = MAPH - 3;  
   set_map(false, x - 1, y - 1, map);
   set_map(false, x, y - 1, map);
   set_map(false, x + 1, y - 1, map);
@@ -223,7 +222,7 @@ boolean genMap() {
   }
   else if(stage == 3)
   {
-    boolean isOk = false;    
+    boolean isOk = true;    
     if (stage3Dir) {
       isOk = search_fwd(map_0, map_1);
     }
@@ -234,7 +233,7 @@ boolean genMap() {
     if(isOk)
     {
       stage++;
-    }
+    }    
     return false;
   }
   else if(stage == 4)
