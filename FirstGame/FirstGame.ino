@@ -480,26 +480,55 @@ void maingame()
 
   //drawSprite(48,16+i);
 
+  fix16_t sinA = fastSin(m_playerAngDegrees);
+  fix16_t cosA = fastCos(m_playerAngDegrees);
+
   if(arduboy.pressed(LEFT_BUTTON))
   {
-    m_playerAngDegrees -=4;
-    if(m_playerAngDegrees < 0)
+    if(arduboy.pressed(A_BUTTON))
     {
-      m_playerAngDegrees+=360;
+      fix16_t newX = fix16_add(m_playerPos.m_x,fix16_div(sinA, fix16_one*5));
+      fix16_t newY = fix16_sub(m_playerPos.m_y,fix16_div(cosA, fix16_one*5));
+  
+      if(getMap(newX,newY) == 0)
+      {
+        m_playerPos.m_x = newX;
+        m_playerPos.m_y = newY;
+      }    
+    }
+    else
+    {    
+      m_playerAngDegrees -=4;
+      if(m_playerAngDegrees < 0)
+      {
+        m_playerAngDegrees+=360;
+      }
     }
   }
   if(arduboy.pressed(RIGHT_BUTTON))
   {
-    m_playerAngDegrees +=4;
-    if(m_playerAngDegrees > 360)
+    if(arduboy.pressed(A_BUTTON))
     {
-      m_playerAngDegrees-=360;
+      fix16_t newX = fix16_sub(m_playerPos.m_x,fix16_div(sinA, fix16_one*5));
+      fix16_t newY = fix16_add(m_playerPos.m_y,fix16_div(cosA, fix16_one*5));
+  
+      if(getMap(newX,newY) == 0)
+      {
+        m_playerPos.m_x = newX;
+        m_playerPos.m_y = newY;
+      }    
     }
-  }
+    else
+    {
+      m_playerAngDegrees +=4;
+      if(m_playerAngDegrees > 360)
+      {
+        m_playerAngDegrees-=360;
+      }
+    }
+  }  
   if(arduboy.pressed(UP_BUTTON))
-  {
-    fix16_t sinA = fastSin(m_playerAngDegrees);
-    fix16_t cosA = fastCos(m_playerAngDegrees);
+  {    
     fix16_t newX = fix16_add(m_playerPos.m_x,fix16_div(cosA, fix16_one*5));
     fix16_t newY = fix16_add(m_playerPos.m_y,fix16_div(sinA, fix16_one*5));
 
@@ -511,8 +540,6 @@ void maingame()
   }
   if(arduboy.pressed(DOWN_BUTTON))
   {
-    fix16_t sinA = fastSin(m_playerAngDegrees);
-    fix16_t cosA = fastCos(m_playerAngDegrees);
     fix16_t newX = fix16_sub(m_playerPos.m_x,fix16_div(cosA, fix16_one*5));
     fix16_t newY = fix16_sub(m_playerPos.m_y,fix16_div(sinA, fix16_one*5));
 
