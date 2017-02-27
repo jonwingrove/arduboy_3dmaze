@@ -1,8 +1,6 @@
 #ifndef __libfixmath_fix16_h__
 #define __libfixmath_fix16_h__
 
-#define FIXMATH_NO_ROUNDING
-
 #ifdef __cplusplus
 extern "C"
 {

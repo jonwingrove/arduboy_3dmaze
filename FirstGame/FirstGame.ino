@@ -1,3 +1,6 @@
+#define FIXMATH_NO_ROUNDING
+#define FIXMATH_NO_OVERFLOW
+
 #include <Arduboy2.h>
 #include <avr/pgmspace.h>
 #include "fix16.h"
@@ -75,7 +78,7 @@ class VecStep
     bool m_inverted;
     fix16_t m_runn;
 
-    VecStep(fix16_t rise, fix16_t runn, fix16_t x, fix16_t y, bool inverted)
+    void reset(fix16_t rise, fix16_t runn, fix16_t x, fix16_t y, bool inverted)
     {
       if (runn == 0)
       {
@@ -161,7 +164,8 @@ int getMap(fix16_t x, fix16_t y)
   return getMapI(ix,iy);
 }
 
-
+VecStep stepX;
+VecStep stepY;
 void castRay(Vec2 pos, int angle, fix16_t range, HitResult* hr)
 {
   fix16_t sinA = fastSin(angle);
@@ -171,8 +175,8 @@ void castRay(Vec2 pos, int angle, fix16_t range, HitResult* hr)
   fix16_t x = pos.m_x;
   fix16_t y = pos.m_y;
 
-  VecStep stepX = VecStep(sinA, cosA, x, y, false);
-  VecStep stepY = VecStep(cosA, sinA, y, x, true);
+  stepX.reset(sinA, cosA, x, y, false);
+  stepY.reset(cosA, sinA, y, x, true);
 
   while (true)
   {
@@ -451,13 +455,13 @@ void drawWallSlice(int x1, int y1, int x2, int y2, fix16_t u, int shade)
       pixCol = pgm_read_byte_near(brickSprite + (ui+vi*16));
       lvi = vi;
     }
-    if(pixCol == 1)
+    if(pixCol + shade == 1)
     {
       //drawShadedPixel(x,y,pixCol+shade);
       arduboy.drawFastHLine(x1,y,w,1);
       
     }
-    else if(pixCol == 2)
+    else if(pixCol + shade == 2)
     {
       arduboy.drawPixel(x1+(y%2),y,pixCol);
     }
@@ -536,7 +540,7 @@ void maingame()
   for(int x = 0; x < MAPW; ++x)
   {
     for(int y= 0; y < MAPH; ++y)
-    {
+    {      
       arduboy.drawPixel(x+96,y,getMapI(x,y));
     }
   }
