@@ -165,6 +165,22 @@ boolean search_back(uint8_t* map_0, uint8_t* map_1) {
   return false;
 }
 
+void seal(uint8_t* map_0, uint8_t* map_1) {
+  clear_map(false, map_1);
+  set_map(true, 3, 3, map_1);
+  set_map(true, MAPW - 4, MAPH - 4, map_1);
+  uint8_t x, y, i;
+  for (i = 0; i < ITER_FIX; i++) {	//last 3 args here don't matter, reusing code
+	if(i%2) search_fwd_inner(map_0, map_1, &x, &y, true);
+	else 	search_back_inner(map_0, map_1, &x, &y, true);
+  }
+  for (x = 0; x < MAPW; x++) {
+    for (y = 0; y < MAPH; y++) {
+      if(!get_map(x, y, map_0) && !get_map(x, y, map_1)) set_map(1, x, y, map_0);
+    }
+  }
+}
+
 uint8_t map_0[MAPS];
 int stage = 0;
 int stage1I = 0;
@@ -183,7 +199,7 @@ boolean genMap() {
   uint8_t x, y, i;
   uint8_t map_1[MAPS];
 
-  i=(rand() % 13) + 4;
+  i=(rand() % 8) + 4;
 
   if(stage == 0)
   {
@@ -237,6 +253,12 @@ boolean genMap() {
     return false;
   }
   else if(stage == 4)
+  {
+    seal(map_0, map_1);
+    stage++;
+    return false;
+  }
+  else if(stage == 5)
   {
     return true;
   }
