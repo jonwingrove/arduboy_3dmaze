@@ -166,14 +166,14 @@ int getMap(fix16_t x, fix16_t y)
 
 VecStep stepX;
 VecStep stepY;
-void castRay(Vec2 pos, int angle, fix16_t range, HitResult* hr)
+void castRay(Vec2* pos, int angle, fix16_t range, HitResult* hr)
 {
   fix16_t sinA = fastSin(angle);
   fix16_t cosA = fastCos(angle);
 
   fix16_t distance = 0;
-  fix16_t x = pos.m_x;
-  fix16_t y = pos.m_y;
+  fix16_t x = pos->m_x;
+  fix16_t y = pos->m_y;
 
   stepX.reset(sinA, cosA, x, y, false);
   stepY.reset(cosA, sinA, y, x, true);
@@ -510,7 +510,7 @@ void maingame()
    
     int angDegrees = m_playerAngDegrees + angOffsetDegrees;
 
-    castRay(m_playerPos, angDegrees, fix16_one * 64, &hitresult);
+    castRay(&m_playerPos, angDegrees, fix16_one * 64, &hitresult);
 
     if(hitresult.m_hit)
     {
