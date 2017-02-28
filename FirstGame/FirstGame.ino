@@ -48,6 +48,10 @@ const byte brickSprite[256] PROGMEM = {
 2,2,2,2,0,2,2,2,2,2,2,2,0,2,2,2
 };
 
+const byte blockSprite[4] PROGMEM = {
+  0xAA,0xAA,0x55,0x55
+};
+
 class SpriteObject
 {
   public:
@@ -55,7 +59,7 @@ class SpriteObject
     int m_sprite;
 };
 
-float s_maxDist = fix16_one * 9999;
+float s_maxDist = F16(9999);
 
 class HitResult
 {
@@ -274,6 +278,17 @@ void drawShadedPixel(int x, int y, int colM)
   }
 }
 
+void fillRectShaded(int x, int y, int w, int h)
+{  
+  for(int dy = y; dy < y+h; ++dy)
+  {
+    for(int dx = x; dx < x+w; ++dx)
+    {
+      arduboy.drawPixel(dx,dy,(dx+dy)%2==0);
+    }
+  }
+}
+
 void maingame();
 void testSin();
 boolean mapGenerated = false;
@@ -298,33 +313,7 @@ void loop() {
     {
       loading=32;
     }
-    if(mapGenerated)
-    {
-      arduboy.print("GENERATED DUNGEON");  
-    }
-    else
-    {
-      if(stage == 0)
-      {
-        arduboy.print("GENERATING DUNGEON 0");
-      }
-      else if(stage == 1)
-      {
-        arduboy.print("GENERATING DUNGEON 1");
-      }
-      else if(stage == 2)
-      {
-        arduboy.print("GENERATING DUNGEON 2");
-      }
-      else if(stage == 3)
-      {
-        arduboy.print("GENERATING DUNGEON 3");
-      }
-      else if(stage == 4)
-      {
-        arduboy.print("GENERATING DUNGEON 4");
-      }
-    }
+    arduboy.print("GENERATING DUNGEON");
   }
   else
   { 
@@ -366,43 +355,79 @@ void drawSprite(int xPos, int ssize, int rClip)
     return;
   }
 
-  fix16_t incPerPix = fix16_div((fix16_one*16), (ssize*2*fix16_one));
+  fix16_t incPerPix = fix16_div(F16(16), (ssize*2*fix16_one));
+  fix16_t startU = 0;
   fix16_t u = 0;
   fix16_t v = 0;
 
-  for(int x = startX; x < endX; ++x)
+  if(startX < 0)
   {
-    if(x >= 0 && x < 128 && ssize >= depths[x])
-    {
-      v = 0;
+    startU = incPerPix * -startX;
+    startX = 0;
+  }
+  if(endX > rClip)
+  {
+    endX = rClip;
+  }
+  if(endY > 96)
+  {
+    endY = 96;
+  }
+  if(startY < 0)
+  {
+    v += incPerPix * -startY;
+    startY = 0;
+  }
+
+  int startUi = fix16_to_int(fix16_floor(startU));
+    
+  for(int y = startY; y < endY; )
+  {
+    int vi = fix16_to_int(fix16_floor(v));
+
+    int pixelsToNext = max(fix16_to_int(fix16_div(fix16_sub(fix16_ceil(v),v),incPerPix)),1);
+    
+    u = startU;
+    int ndx = 0;
+    int ndui = startUi;
+    for(int x = startX; x < endX; ++x)
+    {      
       int ui = fix16_to_int(fix16_floor(u));
-      for(int y = startY; y < endY; ++y)
-      {
-        int vi = fix16_to_int(fix16_floor(v));
+      bool thisPixelVisible = ssize >= depths[x];
+      int drawTo = thisPixelVisible ? x : x - 1;
+      bool shouldDraw = thisPixelVisible ? (ui != ndui || x == endX-1) : (ndx != x);
+      if(shouldDraw)
+      {             
         if(ui < 16 && vi < 16)
         {
+
           int pixCol = pgm_read_byte_near(sprite + (ui+vi*16));
           if(pixCol == 1)
           {
-            arduboy.drawPixel(x,y,1);
+            arduboy.fillRect(ndx,y,(drawTo-ndx)+1,pixelsToNext,1);
           }
           else if(pixCol == -1)
           {
-            arduboy.drawPixel(x,y,0);
+            arduboy.fillRect(ndx,y,(drawTo-ndx)+1,pixelsToNext,0);
           }
           else if(pixCol != 0)
           {
-            drawShadedPixel(x,y,pixCol);
+            fillRectShaded(ndx,y,(drawTo-ndx)+1,pixelsToNext);
           }
         }
-        v = fix16_add(v,incPerPix);
+
+        ndui = ui;
+        ndx=x+1;
       }
+      else if(!thisPixelVisible)
+      {
+        ndx=x+1;
+      }
+      u = fix16_add(u,incPerPix);
     }
-    u = fix16_add(u,incPerPix);
-    if(x>=rClip)
-    {
-      return;
-    }
+    
+    v = fix16_add(v,incPerPix*pixelsToNext);
+    y+=pixelsToNext;
   }
 }
 
@@ -429,12 +454,12 @@ void drawShadedBox(int x1, int y1, int x2, int y2, int shade)
 
 void drawWallSlice(int x1, int y1, int x2, int y2, fix16_t u, int shade)
 {
-  fix16_t incPerPix = fix16_div((fix16_one*16), ((y2-y1)*fix16_one));
+  fix16_t incPerPix = fix16_div(F16(16), ((y2-y1)*fix16_one));
   fix16_t v = 0;
   fix16_t startV = 0;
   if(y1 < 0)
   {
-    startV = fix16_mul(incPerPix, fix16_from_int(-y1));
+    startV = incPerPix * -y1;
     y1=0;    
   }
   if(y2>96)
@@ -458,8 +483,7 @@ void drawWallSlice(int x1, int y1, int x2, int y2, fix16_t u, int shade)
     if(pixCol + shade == 1)
     {
       //drawShadedPixel(x,y,pixCol+shade);
-      arduboy.drawFastHLine(x1,y,w,1);
-      
+      arduboy.drawFastHLine(x1,y,w,1);      
     }
     else if(pixCol + shade == 2)
     {
@@ -471,31 +495,32 @@ void drawWallSlice(int x1, int y1, int x2, int y2, fix16_t u, int shade)
 }
 
 
-AngleSize getAngleDistTo(Vec2 pos, Vec2 viewer, int playerAng)
+void getAngleDistTo(Vec2* pos, Vec2* viewer, int playerAng, AngleSize* result)
 {
-  AngleSize result;
-  fix16_t dx = pos.m_x - viewer.m_x;
-  fix16_t dy = pos.m_y - viewer.m_y;
+  fix16_t dx = pos->m_x - viewer->m_x;
+  fix16_t dy = pos->m_y - viewer->m_y;
 
   fix16_t angle = fix16_atan2(dy,dx);
 
   fix16_t len = fix16_sqrt(fix16_mul(dx,dx) + fix16_mul(dy,dy));
-  result.m_dist = len;
+  result->m_dist = len;
   
-  result.m_angle = fix16_to_int(fix16_rad_to_deg(angle));
+  result->m_angle = fix16_to_int(fix16_rad_to_deg(angle));
   
-  result.m_angle-=playerAng;
-  while(result.m_angle>180)
+  result->m_angle-=playerAng;
+  while(result->m_angle>180)
   {
-    result.m_angle-=360;
+    result->m_angle-=360;
   }
-  while(result.m_angle<-180)
+  while(result->m_angle<-180)
   {
-    result.m_angle+=360;
+    result->m_angle+=360;
   }
   
   return result;
 }
+
+const fix16_t movementSpeed = F16(5);
 
 void maingame()
 {
@@ -510,7 +535,7 @@ void maingame()
    
     int angDegrees = m_playerAngDegrees + angOffsetDegrees;
 
-    castRay(&m_playerPos, angDegrees, fix16_one * 64, &hitresult);
+    castRay(&m_playerPos, angDegrees, F16(64), &hitresult);
 
     if(hitresult.m_hit)
     {
@@ -521,7 +546,7 @@ void maingame()
       int wallHeightI = 32;
       if(z > 0)
       {
-        fix16_t wallHeight = fix16_div(16 * fix16_one, z);              
+        fix16_t wallHeight = fix16_div(F16(16), z);              
         wallHeightI = fix16_to_int(wallHeight);
       }
       
@@ -530,7 +555,7 @@ void maingame()
       depths[x+1] = wallHeightI;
   
       fix16_t part = hitresult.m_isVertical ? hitresult.m_hitY : hitresult.m_hitX;
-      fix16_t tcX = fix16_mul(part & 0x0000FFFF, fix16_one*16);
+      fix16_t tcX = (part & 0x0000FFFF) * 16;
       
       //drawShadedBox(x,32-wallHeightI,x+sliceWidth,32+wallHeightI,zInt);
       drawWallSlice(x,32-wallHeightI,x+sliceWidth,32+wallHeightI,tcX,zInt/3);
@@ -553,7 +578,8 @@ void maingame()
   int ePosY = fix16_to_int(m_enemyPos.m_y);
   arduboy.drawPixel(96+ePosX, ePosY, i%2);
 
-  AngleSize toEnemy = getAngleDistTo(m_enemyPos, m_playerPos,m_playerAngDegrees);
+  AngleSize toEnemy;
+  getAngleDistTo(&m_enemyPos, &m_playerPos,m_playerAngDegrees, &toEnemy);
   int xOff = 48+(toEnemy.m_angle);
   if(xOff>-32 && xOff<128)
   {
@@ -561,8 +587,8 @@ void maingame()
     int enHeightI = 32;
     if(zte > 0)
     {
-      fix16_t enHeight = fix16_div(16 * fix16_one, zte);              
-      enHeightI = min(fix16_to_int(enHeight),32);
+      fix16_t enHeight = fix16_div(F16(16), zte);              
+      enHeightI = fix16_to_int(enHeight);
     }
     drawSprite(xOff,enHeightI,96);
   }
@@ -576,8 +602,8 @@ void maingame()
   {
     if(arduboy.pressed(A_BUTTON))
     {
-      fix16_t newX = fix16_add(m_playerPos.m_x,fix16_div(sinA, fix16_one*5));
-      fix16_t newY = fix16_sub(m_playerPos.m_y,fix16_div(cosA, fix16_one*5));
+      fix16_t newX = fix16_add(m_playerPos.m_x,fix16_div(sinA, movementSpeed));
+      fix16_t newY = fix16_sub(m_playerPos.m_y,fix16_div(cosA, movementSpeed));
   
       if(getMap(newX,newY) == 0)
       {
@@ -598,8 +624,8 @@ void maingame()
   {
     if(arduboy.pressed(A_BUTTON))
     {
-      fix16_t newX = fix16_sub(m_playerPos.m_x,fix16_div(sinA, fix16_one*5));
-      fix16_t newY = fix16_add(m_playerPos.m_y,fix16_div(cosA, fix16_one*5));
+      fix16_t newX = fix16_sub(m_playerPos.m_x,fix16_div(sinA, movementSpeed));
+      fix16_t newY = fix16_add(m_playerPos.m_y,fix16_div(cosA, movementSpeed));
   
       if(getMap(newX,newY) == 0)
       {
@@ -618,8 +644,8 @@ void maingame()
   }  
   if(arduboy.pressed(UP_BUTTON))
   {    
-    fix16_t newX = fix16_add(m_playerPos.m_x,fix16_div(cosA, fix16_one*5));
-    fix16_t newY = fix16_add(m_playerPos.m_y,fix16_div(sinA, fix16_one*5));
+    fix16_t newX = fix16_add(m_playerPos.m_x,fix16_div(cosA, movementSpeed));
+    fix16_t newY = fix16_add(m_playerPos.m_y,fix16_div(sinA, movementSpeed));
 
     if(getMap(newX,newY) == 0)
     {
@@ -629,8 +655,8 @@ void maingame()
   }
   if(arduboy.pressed(DOWN_BUTTON))
   {
-    fix16_t newX = fix16_sub(m_playerPos.m_x,fix16_div(cosA, fix16_one*5));
-    fix16_t newY = fix16_sub(m_playerPos.m_y,fix16_div(sinA, fix16_one*5));
+    fix16_t newX = fix16_sub(m_playerPos.m_x,fix16_div(cosA, movementSpeed));
+    fix16_t newY = fix16_sub(m_playerPos.m_y,fix16_div(sinA, movementSpeed));
 
     if(getMap(newX,newY) == 0)
     {
