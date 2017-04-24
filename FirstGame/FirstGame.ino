@@ -7,6 +7,8 @@
 #include "mazegen.h"
 #include "vector.h"
 #include "lookup.h"
+#include "musicgen.h"
+#include "ArduboyPlaytune.h"
 
 Arduboy2 arduboy;
 
@@ -48,18 +50,23 @@ const byte brickSprite[256] PROGMEM = {
 2,2,2,2,0,2,2,2,2,2,2,2,0,2,2,2
 };
 
-const byte blockSprite[4] PROGMEM = {
-  0xAA,0xAA,0x55,0x55
-};
-
 class SpriteObject
 {
   public:
     Vec2 m_position;
     int m_sprite;
+    int m_type;
+
+    SpriteObject()
+    {
+      
+    }
 };
 
+SpriteObject m_spriteObjects[10];
+
 float s_maxDist = F16(9999);
+uint8_t s_musicBuffer[BUFMAX];
 
 class HitResult
 {
@@ -249,6 +256,8 @@ Vec2 m_playerPos = Vec2(1.3f,1.4f);
 Vec2 m_enemyPos = Vec2(4.4f,5.4f);
 int m_playerAngDegrees = 0;
 
+ArduboyPlaytune m_musicPlayer;
+
 void setup() {
   // put your setup code here, to run once:
   arduboy.begin();
@@ -258,6 +267,8 @@ void setup() {
   m_playerPos = Vec2(fix16_from_float(1.3f),fix16_from_float(1.4f));
   m_enemyPos = Vec2(fix16_from_float(3.3f),fix16_from_float(3.4f));
   resetGen(7);
+
+  m_spriteObjects[0] = SpriteObject();  
 }
 
 int i = 0;
@@ -292,6 +303,7 @@ void fillRectShaded(int x, int y, int w, int h)
 void maingame();
 void testSin();
 boolean mapGenerated = false;
+boolean musicGenerated = false;
 int loading = 32;
 
 void loop() {
@@ -317,6 +329,14 @@ void loop() {
   }
   else
   { 
+    if(!musicGenerated)
+    {
+      musicGenerated = true;
+      generateTheme(s_musicBuffer);
+      m_musicPlayer.initChannel(PIN_SPEAKER_1);
+      m_musicPlayer.initChannel(PIN_SPEAKER_2);
+      m_musicPlayer.playScore(s_musicBuffer);
+    }
     maingame();
   }
   //testSin();

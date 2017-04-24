@@ -1,5 +1,5 @@
-#define MAPW 32
-#define MAPH 32
+#define MAPW 24
+#define MAPH 24
 #define MAPS ((MAPW * MAPH) / 8)
 #define ITER_GEN 32
 #define ITER_FIX 8

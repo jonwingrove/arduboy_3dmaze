@@ -5,9 +5,15 @@ class Vec2
     fix16_t m_y;
 
     Vec2(fix16_t x, fix16_t y)
+    :
+    m_x(x),
+    m_y(y)
     {
-      m_x = x;
-      m_y = y;
+    }
+
+    Vec2()
+    {
+      
     }
 };
 
