@@ -9,6 +9,7 @@
 #include "lookup.h"
 #include "musicgen.h"
 #include "ArduboyPlaytune.h"
+#include "GameObject.h"
 
 Arduboy2 arduboy;
 
@@ -50,22 +51,11 @@ const byte brickSprite[256] PROGMEM = {
 2,2,2,2,0,2,2,2,2,2,2,2,0,2,2,2
 };
 
-class SpriteObject
-{
-  public:
-    Vec2 m_position;
-    int m_sprite;
-    int m_type;
+#define MAX_GAMEOBJECTS 10
 
-    SpriteObject()
-    {
-      
-    }
-};
+GameObject m_spriteObjects[MAX_GAMEOBJECTS];
 
-SpriteObject m_spriteObjects[10];
-
-float s_maxDist = F16(9999);
+#define MAX_DIST F16(9999);
 uint8_t s_musicBuffer[BUFMAX];
 
 class HitResult
@@ -94,7 +84,7 @@ class VecStep
       if (runn == 0)
       {
         m_runn = 0;
-        m_lengthSquared = s_maxDist;
+        m_lengthSquared = MAX_DIST;
       }
       else
       {
@@ -252,8 +242,6 @@ void castRay(Vec2* pos, int angle, fix16_t range, HitResult* hr)
 }
 
 Vec2 m_playerPos = Vec2(1.3f,1.4f);
-
-Vec2 m_enemyPos = Vec2(4.4f,5.4f);
 int m_playerAngDegrees = 0;
 
 ArduboyPlaytune m_musicPlayer;
@@ -265,10 +253,17 @@ void setup() {
   arduboy.initRandomSeed();
 
   m_playerPos = Vec2(fix16_from_float(1.3f),fix16_from_float(1.4f));
-  m_enemyPos = Vec2(fix16_from_float(3.3f),fix16_from_float(3.4f));
   resetGen(7);
 
-  m_spriteObjects[0] = SpriteObject();  
+  for(int i = 0; i < MAX_GAMEOBJECTS; ++i)
+  {
+    memset(&m_spriteObjects[i], 0, sizeof(GameObject));
+  }
+  m_spriteObjects[0].m_type = 1;
+  m_spriteObjects[0].m_position = Vec2(fix16_from_float(3.3f),fix16_from_float(3.4f));  
+
+    m_spriteObjects[1].m_type = 1;
+  m_spriteObjects[1].m_position = Vec2(fix16_from_float(4.7f),fix16_from_float(2.8f));  
 }
 
 int i = 0;
@@ -594,24 +589,67 @@ void maingame()
   int pPosY = fix16_to_int(m_playerPos.m_y);
   arduboy.drawPixel(96+pPosX, pPosY, i%2);
 
-  int ePosX = fix16_to_int(m_enemyPos.m_x);
-  int ePosY = fix16_to_int(m_enemyPos.m_y);
-  arduboy.drawPixel(96+ePosX, ePosY, i%2);
-
-  AngleSize toEnemy;
-  getAngleDistTo(&m_enemyPos, &m_playerPos,m_playerAngDegrees, &toEnemy);
-  int xOff = 48+(toEnemy.m_angle);
-  if(xOff>-32 && xOff<128)
+  for(int i = 0; i < MAX_GAMEOBJECTS; ++i)
   {
-    fix16_t zte = fix16_mul(toEnemy.m_dist, fastCos(toEnemy.m_angle));
-    int enHeightI = 32;
-    if(zte > 0)
+    if(m_spriteObjects[i].m_type != 0)
     {
-      fix16_t enHeight = fix16_div(F16(16), zte);              
-      enHeightI = fix16_to_int(enHeight);
+      getAngleDistTo(&(m_spriteObjects[i].m_position), &m_playerPos,m_playerAngDegrees, &(m_spriteObjects[i].m_cachedAngleSize));     
+      int ePosX = fix16_to_int(m_spriteObjects[i].m_position.m_x);
+      int ePosY = fix16_to_int(m_spriteObjects[i].m_position.m_y);
+      arduboy.drawPixel(96+ePosX, ePosY, i%2);
     }
-    drawSprite(xOff,enHeightI,96);
   }
+
+  for(int i = 0; i < MAX_GAMEOBJECTS; ++i)
+  {
+    bool anySwaps = false;
+    for(int j = 0; j < MAX_GAMEOBJECTS-(i+1); ++j)
+    {
+      bool swap = false;
+      if(m_spriteObjects[j].m_type == 0 && m_spriteObjects[j+1].m_type != 0)
+      {
+        swap = true;
+      }
+      else if (m_spriteObjects[j].m_type != 0 && m_spriteObjects[j+1].m_type != 0)
+      {
+        if(m_spriteObjects[j].m_cachedAngleSize.m_dist < m_spriteObjects[j+1].m_cachedAngleSize.m_dist)
+        {
+          swap = true;
+        }
+      }
+
+      if(swap)
+      {
+        GameObject tmp = m_spriteObjects[j];
+        m_spriteObjects[j] = m_spriteObjects[j+1];
+        m_spriteObjects[j+1] = tmp;
+        anySwaps = true;
+      }
+    }
+    if(!anySwaps)
+    {
+      break;
+    }
+  }
+
+  for(int i = 0; i < MAX_GAMEOBJECTS; ++i)
+  {
+    if(m_spriteObjects[i].m_type != 0)
+    {
+      int xOff = 48+(m_spriteObjects[i].m_cachedAngleSize.m_angle);    
+      if(xOff>-32 && xOff<128)
+      {
+        fix16_t zte = fix16_mul(m_spriteObjects[i].m_cachedAngleSize.m_dist, fastCos(m_spriteObjects[i].m_cachedAngleSize.m_angle));
+        int enHeightI = 32;
+        if(zte > 0)
+        {
+          fix16_t enHeight = fix16_div(F16(16), zte);              
+          enHeightI = fix16_to_int(enHeight);
+        }
+        drawSprite(xOff,enHeightI,96);
+      }
+    }
+  }     
 
   //
 

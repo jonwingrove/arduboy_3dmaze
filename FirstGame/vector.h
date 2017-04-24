@@ -1,3 +1,5 @@
+#ifndef VECTOR2
+#define VECTOR2
 class Vec2
 {
   public:
@@ -23,4 +25,4 @@ class AngleSize
     int m_angle;
     fix16_t m_dist;
 };
-
+#endif
