@@ -123,7 +123,7 @@ void generateTheme(uint8_t* buf)
 
   seed = 1;
 
-  srand(seed);
+  //srand(seed);
 
   for(i=0;i<BUFMAX;i++) {
     buf[i]=0x00;
@@ -135,9 +135,9 @@ void generateTheme(uint8_t* buf)
 
   ptr=0;
   dur_theme=0;
-  mode=rand()%5;
-  key=rand()%12;
-  semiq=rand()%128+128;
+  mode=random()%5;
+  key=random()%12;
+  semiq=random()%128+128;
 
   //THEME
 
@@ -145,23 +145,23 @@ void generateTheme(uint8_t* buf)
   writerest(theme, &ptr, (uint16_t)semiq * 8);
 
   //generate theme
-  note = 12 + 2 * (rand() % 3);
-  dur = notedurs[rand() % 6];
+  note = 12 + 2 * (random() % 3);
+  dur = notedurs[random() % 6];
 
 
   while(dur_theme < 64) {
     writenoteon(theme, &ptr, 60 + key + modes[mode][note%12], 0);
     writerest(theme, &ptr, (uint16_t)semiq * dur);
     dur_theme += dur;
-    r = rand()%14;
+    r = random()%14;
     if(r<4) note--;
     else if(r<8) note++;
     else if(r<10) note-=2;
     else if(r<12) note+=2;
     else if(r==12) note-=3;
     else if(r==13) note+=3;
-    r = rand()%3;
-    if(r==0) dur = notedurs[rand() % 6];
+    r = random()%3;
+    if(r==0) dur = notedurs[random() % 6];
     else if(r==1) dur = 4 - (dur_theme % 4);
     //else if r==2 keep the same duration value
   }

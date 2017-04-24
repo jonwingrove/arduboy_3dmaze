@@ -191,7 +191,7 @@ void resetGen(uint32_t seed)
   stage = 0;
   stage1I = 0;
   stage3Dir = true;
- srand(seed);
+ //srand(seed);
 }
 
 boolean genMap() {
@@ -199,18 +199,18 @@ boolean genMap() {
   uint8_t x, y, i;
   uint8_t map_1[MAPS];
 
-  i=(rand() % 8) + 4;
+  i=(random() % 8) + 4;
 
   if(stage == 0)
   {
     stage1I = 0;
     for (x = 0; x < MAPW; x++) {
       for (y = 0; y < MAPH; y++) {
-        set_map((rand() % i == 0), x, y, map_0);
+        set_map((random() % i == 0), x, y, map_0);
       }
     }
     stage++;
-    stage1I=ITER_GEN - (rand() % 16);
+    stage1I=ITER_GEN - (random() % 16);
     return false;
     
   }
