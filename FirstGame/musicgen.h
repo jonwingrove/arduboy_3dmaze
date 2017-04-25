@@ -142,7 +142,7 @@ void generateTheme(uint8_t* buf)
   //THEME
 
   //count off
-  writerest(theme, &ptr, (uint16_t)semiq * 8);
+  //writerest(theme, &ptr, (uint16_t)semiq * 8);
 
   //generate theme
   note = 12 + 2 * (random() % 3);
@@ -168,7 +168,7 @@ void generateTheme(uint8_t* buf)
 
   //end
   writenoteoff(theme, &ptr, 0);
-  writerest(theme, &ptr, (uint16_t)semiq * 8);
+  //writerest(theme, &ptr, (uint16_t)semiq * 8);
 
   len_theme=ptr;
 
@@ -177,7 +177,7 @@ void generateTheme(uint8_t* buf)
   ptr=0;
 
   //count off
-  writerest(bass, &ptr, (uint16_t)semiq * 8);
+  //writerest(bass, &ptr, (uint16_t)semiq * 8);
 
   //placeholder bass
   for(i=0;i<16;i++) {
@@ -188,7 +188,7 @@ void generateTheme(uint8_t* buf)
   }
 
   //end
-  writerest(theme, &ptr, (uint16_t)semiq * 8);
+  //writerest(theme, &ptr, (uint16_t)semiq * 8);
 
   len_bass=ptr;
 
