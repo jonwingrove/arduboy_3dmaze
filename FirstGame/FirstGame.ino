@@ -11,44 +11,67 @@
 #include "ArduboyPlaytune.h"
 #include "GameObject.h"
 
+#define TEX_MAN 0
+#define TEX_WALL 1
+#define TEX_DOOR 2
+
+
 Arduboy2 arduboy;
 
-const byte sprite[256] PROGMEM = {
-0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,
-0,0,0,0,1,0,1,1,1,1,0,1,0,0,0,0,
-0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,
-0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,
-0,0,0,1,0,1,2,1,2,1,1,0,0,0,0,0,
-0,0,0,1,0,1,1,1,1,1,1,0,0,0,0,0,
-0,0,0,1,0,1,1,1,1,1,1,0,0,0,0,0,
-0,0,0,1,0,1,1,1,1,1,0,1,1,1,0,0,
-0,0,1,1,1,0,1,1,1,1,0,1,1,1,0,0,
-0,0,0,1,1,0,1,1,1,1,0,1,1,1,0,0,
-0,0,0,0,0,0,1,1,1,1,0,1,1,1,0,0,
-0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,
-0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,
-0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,
-0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,
-0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0
-};
+const byte textures[192] PROGMEM = {
+    //TEX_MAN
+    0x00, 0x40, 0x01, 0x00,
+    0x00, 0x45, 0x51, 0x00,
+    0x00, 0x55, 0x55, 0x00,
+    0x00, 0x55, 0x55, 0x00,    
+    0x01, 0x19, 0x94, 0x00,
+    0x01, 0x15, 0x54, 0x00,
+    0x01, 0x15, 0x54, 0x00,
+    0x01, 0x15, 0x51, 0x50,    
+    0x05, 0x45, 0x51, 0x50,
+    0x01, 0x45, 0x51, 0x50,
+    0x00, 0x05, 0x51, 0x50,
+    0x00, 0x15, 0x54, 0x00,    
+    0x00, 0x04, 0x10, 0x00,
+    0x00, 0x04, 0x10, 0x00,
+    0x00, 0x04, 0x10, 0x00,
+    0x00, 0x04, 0x10, 0x00,  
+  
+    //TEX_WALL
+    0x15, 0x56, 0x15, 0x56,
+    0x15, 0x56, 0x15, 0x56,
+    0x2a, 0xaa, 0x2a, 0xaa,
+    0x00, 0x00, 0x00, 0x00,    
+    0x56, 0x15, 0x56, 0x15,
+    0x56, 0x15, 0x56, 0x15,
+    0xaa, 0x2a, 0xaa, 0x2a,    
+    0x00, 0x00, 0x00, 0x00,    
+    0x15, 0x56, 0x15, 0x56,
+    0x15, 0x56, 0x15, 0x56,
+    0x2a, 0xaa, 0x2a, 0xaa,
+    0x00, 0x00, 0x00, 0x00,    
+    0x56, 0x15, 0x56, 0x15,
+    0x56, 0x15, 0x56, 0x15,
+    0x56, 0x15, 0x56, 0x15,
+    0xaa, 0x2a, 0xaa, 0x2a,
 
-const byte brickSprite[256] PROGMEM = {
-0,1,1,1,1,1,1,2,0,1,1,1,1,1,1,2,
-0,1,1,1,1,1,1,2,0,1,1,1,1,1,1,2,
-0,2,2,2,2,2,2,2,0,2,2,2,2,2,2,2,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-1,1,1,2,0,1,1,1,1,1,1,2,0,1,1,1,
-1,1,1,2,0,1,1,1,1,1,1,2,0,1,1,1,
-2,2,2,2,0,2,2,2,2,2,2,2,0,2,2,2,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,1,1,1,1,1,1,2,0,1,1,1,1,1,1,2,
-0,1,1,1,1,1,1,2,0,1,1,1,1,1,1,2,
-0,2,2,2,2,2,2,2,0,2,2,2,2,2,2,2,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-1,1,1,2,0,1,1,1,1,1,1,2,0,1,1,1,
-1,1,1,2,0,1,1,1,1,1,1,2,0,1,1,1,
-1,1,1,2,0,1,1,1,1,1,1,2,0,1,1,1,
-2,2,2,2,0,2,2,2,2,2,2,2,0,2,2,2
+    //TEX_DOOR
+    0x15, 0x56, 0x15, 0x56,
+    0x15, 0x56, 0x15, 0x56,
+    0x2a, 0xaa, 0x2a, 0xaa,
+    0x00, 0x00, 0x00, 0x00,    
+    0x58, 0x00, 0x00, 0x15,
+    0x58, 0x00, 0x00, 0x15,
+    0xa8, 0x00, 0x00, 0x2a,
+    0x00, 0x00, 0x00, 0x00,    
+    0x18, 0x00, 0x00, 0x16,
+    0x18, 0x00, 0x00, 0x16,
+    0x28, 0x00, 0x00, 0x2a,
+    0x00, 0x00, 0x00, 0x00, 
+    0x58, 0x00, 0x00, 0x15,
+    0x58, 0x00, 0x00, 0x15,
+    0x58, 0x00, 0x00, 0x15,
+    0xa8, 0x00, 0x00, 0x2a
 };
 
 #define MAX_GAMEOBJECTS 10
@@ -111,6 +134,16 @@ class VecStep
         }
     }
 };
+
+byte get_tex(size_t id, int u, int v) {
+  byte dat = pgm_read_byte_near(textures + (id*64) + (v*4) + (u/4));
+  switch(u%4) {
+    case 0: return (dat >> 6) & 0x03;
+    case 1: return (dat >> 4) & 0x03;
+    case 2: return (dat >> 2) & 0x03;
+    case 3: return dat & 0x03;
+  }  
+}
 
 
 fix16_t fastSin(int angDegrees)
@@ -416,7 +449,8 @@ void drawSprite(int xPos, int ssize, int rClip)
         if(ui < 16 && vi < 16)
         {
 
-          int pixCol = pgm_read_byte_near(sprite + (ui+vi*16));
+          //int pixCol = pgm_read_byte_near(sprite + (ui+vi*16));
+          int pixCol = get_tex(TEX_MAN, ui, vi);
           if(pixCol == 1)
           {
             arduboy.fillRect(ndx,y,(drawTo-ndx)+1,pixelsToNext,1);
@@ -492,7 +526,8 @@ void drawWallSlice(int x1, int y1, int x2, int y2, fix16_t u, int shade)
     int vi = fix16_to_int(fix16_floor(v))%16;
     if(vi != lvi)
     {
-      pixCol = pgm_read_byte_near(brickSprite + (ui+vi*16));
+      //pixCol = pgm_read_byte_near(brickSprite + (ui+vi*16));
+      pixCol = get_tex(TEX_WALL, ui, vi);
       lvi = vi;
     }
     if(pixCol + shade == 1)

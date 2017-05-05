@@ -1,0 +1,36 @@
+<html>
+	<head>
+		<title>Spritemaker</title>
+		<script src="https://code.jquery.com/jquery-3.1.0.min.js" integrity="sha256-cCueBR6CsyA4/9szpPfrX3s49M9vUU5BgtiJj06wt/s=" crossorigin="anonymous"></script>
+		<script type="text/javascript">
+			$(document).ready(function() { 
+				$('#in input').on('change mouseup', function(){
+					if($(this).val()>3) $(this).val('3');
+					else if($(this).val()<0) $(this).val('0');
+					var hex=parseInt($('#_3').val()) + 
+						(parseInt($('#_2').val()) << 2) + 
+						(parseInt($('#_1').val()) << 4) + 
+						(parseInt($('#_0').val()) << 6);
+					hex=hex.toString(16);
+					while(hex.length<2) hex = '0' + hex;
+					$('#out span').html('0x' + hex);
+				});
+			
+			});
+		
+		</script>
+		<style type="text/css">
+			#in input {display:inline-block;width:60px;}
+		</style>
+	</head>
+	<body>
+		<div id="in">
+			<input id="_0" type="number" value="0"></input>
+			<input id="_1" type="number" value="0"></input>
+			<input id="_2" type="number" value="0"></input>
+			<input id="_3" type="number" value="0"></input>
+		</div>
+		<div id="out"><span>0x00</span></div>
+	</body>
+
+</html>
