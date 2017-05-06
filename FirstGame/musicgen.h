@@ -21,6 +21,23 @@ const uint8_t modes[5][7] = {
 
 const uint8_t notedurs[6] = {1, 2, 3, 4, 6, 8};
 
+const uint8_t discord[12] = {
+    5, //unison
+    50, //flat 2
+    30, //2nd
+    8,  //minor 3
+    
+    8,  //major 3
+    5, //4
+    50, //flat 5
+    5, //5
+    
+    10, //minor 6
+    10, //major 6
+    20, //7th
+    50 //sharp 7
+  };
+
 void writerest(uint8_t* buf, uint16_t* ptr, uint16_t dur) {
   buf[(*ptr)++]=(uint8_t)((dur >> 8) & 0x7f);
   buf[(*ptr)++]=(uint8_t)(dur & 0xff);
@@ -122,9 +139,9 @@ void generateTheme(uint8_t* buf)
   uint8_t bass[SUBMAX];
 
   time_t t;
-  uint16_t i, ptr, dur_theme, len_theme, len_bass;
-  uint8_t r, note, key, mode, semiq, dur;
-
+  uint16_t i, j, ptr, dur_theme, len_theme, ptr_bass, len_bass;
+  uint8_t r, note, bassnote, key, mode, semiq, dur, bassctr, diff, err, dis;
+  uint8_t pitch[12];
 
   for(i=0;i<BUFMAX;i++) {
     buf[i]=0x00;
@@ -135,6 +152,8 @@ void generateTheme(uint8_t* buf)
   }
 
   ptr=0;
+  ptr_bass=0;
+  bassctr=0;
   dur_theme=0;
   mode=RNG%5;
   key=RNG%12;
@@ -153,6 +172,32 @@ void generateTheme(uint8_t* buf)
   while(dur_theme < 64) {
     writenoteon(theme, &ptr, 60 + key + modes[mode][note%12], 0);
     writerest(theme, &ptr, (uint16_t)semiq * dur);
+    while(dur > 0) {
+      dur_theme++;
+      dur--;
+      bassctr++;
+      if(bassctr==4) {
+        bassctr=0;  
+        bassnote=0;
+        err=255;
+        for(j=0;j<7;j++) {
+          diff=(modes[mode][note%12]>modes[mode][j] ? 
+              modes[mode][note%12]-modes[mode][j] : 
+              modes[mode][j]-modes[mode][note%12]);
+          dis=discord[diff];
+          if(j==0)dis/=3;
+          else if(j==3)dis/=2;
+          if(dis<err) {
+            err=dis;
+            bassnote=modes[mode][j];      
+          }          
+        }
+        writenoteon(bass, &ptr_bass, 48+key+bassnote, 1);
+        writerest(bass, &ptr_bass, semiq * 2);
+        writenoteoff(bass, &ptr_bass, 1);
+        writerest(bass, &ptr_bass, semiq * 2);
+      }      
+    }
     dur_theme += dur;
     r = random()%14;
     if(r<4) note--;
@@ -165,6 +210,8 @@ void generateTheme(uint8_t* buf)
     if(r==0) dur = notedurs[random() % 6];
     else if(r==1) dur = 4 - (dur_theme % 4);
     //else if r==2 keep the same duration value
+
+    if(dur+dur_theme>64) dur = 64 - dur_theme;
   }
 
   //end
@@ -172,26 +219,7 @@ void generateTheme(uint8_t* buf)
   //writerest(theme, &ptr, (uint16_t)semiq * 8);
 
   len_theme=ptr;
-
-  //BASS
-
-  ptr=0;
-
-  //count off
-  //writerest(bass, &ptr, (uint16_t)semiq * 8);
-
-  //placeholder bass
-  for(i=0;i<16;i++) {
-    writenoteon(bass, &ptr, 48+key, 1);
-    writerest(bass, &ptr, semiq * 2);
-    writenoteoff(bass, &ptr, 1);
-    writerest(bass, &ptr, semiq * 2);
-  }
-
-  //end
-  //writerest(theme, &ptr, (uint16_t)semiq * 8);
-
-  len_bass=ptr;
+  len_bass=ptr_bass;
 
   ptr = mixdown(theme, len_theme, 0, 0, bass, len_bass, 0, 0, buf);
   //loop
