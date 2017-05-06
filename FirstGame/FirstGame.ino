@@ -8,6 +8,7 @@
 #include "vector.h"
 #include "lookup.h"
 #include "musicgen.h"
+#include "namegen.h"
 #include "ArduboyPlaytune.h"
 #include "GameObject.h"
 
@@ -276,6 +277,8 @@ void castRay(Vec2* pos, int angle, fix16_t range, HitResult* hr)
 
 Vec2 m_playerPos = Vec2(1.3f,1.4f);
 int m_playerAngDegrees = 0;
+uint32_t seed;
+char worldname[NAMELEN];
 
 ArduboyPlaytune m_musicPlayer;
 
@@ -285,9 +288,11 @@ void setup() {
   arduboy.setFrameRate(30);
   arduboy.initRandomSeed();
 
+  seed = random();
   m_playerPos = Vec2(fix16_from_float(1.3f),fix16_from_float(1.4f));
-  resetGen(7);
-
+  resetMazeGen(seed);
+  resetMusicGen(seed);
+  getname(seed, worldname);
   for(int i = 0; i < MAX_GAMEOBJECTS; ++i)
   {
     memset(&m_spriteObjects[i], 0, sizeof(GameObject));
@@ -342,7 +347,7 @@ void loop() {
 
   arduboy.clear();
 
-  if(mapGenerated == false)
+  if(!mapGenerated)
   {
     arduboy.setCursor(0,0);
     
@@ -353,7 +358,8 @@ void loop() {
     {
       loading=32;
     }
-    arduboy.print("GENERATING DUNGEON");
+    arduboy.print("DUNGEON OF ");
+    arduboy.print(worldname);
   }
   else
   { 
@@ -501,11 +507,15 @@ void drawShadedBox(int x1, int y1, int x2, int y2, int shade)
   }
 }
 
-void drawWallSlice(int x1, int y1, int x2, int y2, fix16_t u, int shade)
+void drawWallSlice(int x1, int y1, int x2, int y2, fix16_t u, int shade, HitResult* hit)
 {
   fix16_t incPerPix = fix16_div(F16(16), ((y2-y1)*fix16_one));
   fix16_t v = 0;
   fix16_t startV = 0;
+  char tid = TEX_WALL;
+  int hx = fix16_to_int(fix16_floor(hit->m_hitX));
+  int hy = fix16_to_int(fix16_floor(hit->m_hitY));
+  if(hx==(MAPW-3)&&hy==(MAPH-1)) tid = TEX_DOOR;
   if(y1 < 0)
   {
     startV = incPerPix * -y1;
@@ -527,7 +537,7 @@ void drawWallSlice(int x1, int y1, int x2, int y2, fix16_t u, int shade)
     if(vi != lvi)
     {
       //pixCol = pgm_read_byte_near(brickSprite + (ui+vi*16));
-      pixCol = get_tex(TEX_WALL, ui, vi);
+      pixCol = get_tex(tid, ui, vi);
       lvi = vi;
     }
     if(pixCol + shade == 1)
@@ -608,7 +618,7 @@ void maingame()
       fix16_t tcX = (part & 0x0000FFFF) * 16;
       
       //drawShadedBox(x,32-wallHeightI,x+sliceWidth,32+wallHeightI,zInt);
-      drawWallSlice(x,32-wallHeightI,x+sliceWidth,32+wallHeightI,tcX,zInt/3);
+      drawWallSlice(x,32-wallHeightI,x+sliceWidth,32+wallHeightI,tcX,zInt/3,&hitresult);
     }
   }
 

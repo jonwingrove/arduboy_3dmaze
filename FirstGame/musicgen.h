@@ -7,6 +7,7 @@
 #define BUFMAX 256 //allocated for final output
 #define SUBMAX 128  //allocated per sub-theme, can be disposed of after generation
 
+#define RNG rand()
 
 typedef bool boolean;
 
@@ -111,19 +112,19 @@ uint16_t mixdown(uint8_t* buf_a, uint8_t len_a, int8_t trnsp_a, uint16_t delay_a
   return ptr_out;
 }
 
+void resetMusicGen(uint32_t seed) {
+    srand(seed);  
+}
+
 void generateTheme(uint8_t* buf)
 {
   uint8_t theme[SUBMAX];
   uint8_t bass[SUBMAX];
 
-  uint32_t seed;
   time_t t;
   uint16_t i, ptr, dur_theme, len_theme, len_bass;
   uint8_t r, note, key, mode, semiq, dur;
 
-  seed = 1;
-
-  //srand(seed);
 
   for(i=0;i<BUFMAX;i++) {
     buf[i]=0x00;
@@ -135,9 +136,9 @@ void generateTheme(uint8_t* buf)
 
   ptr=0;
   dur_theme=0;
-  mode=random()%5;
-  key=random()%12;
-  semiq=random()%128+128;
+  mode=RNG%5;
+  key=RNG%12;
+  semiq=RNG%128+128;
 
   //THEME
 
@@ -145,8 +146,8 @@ void generateTheme(uint8_t* buf)
   //writerest(theme, &ptr, (uint16_t)semiq * 8);
 
   //generate theme
-  note = 12 + 2 * (random() % 3);
-  dur = notedurs[random() % 6];
+  note = 12 + 2 * (RNG % 3);
+  dur = notedurs[RNG % 6];
 
 
   while(dur_theme < 64) {
