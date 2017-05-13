@@ -11,12 +11,12 @@
 
 typedef bool boolean;
 
-const uint8_t modes[5][7] = {
-  {0, 2, 3, 5, 7, 9, 10},
-  {0, 1, 3, 5, 7, 8, 10},
-  {0, 2, 3, 5, 7, 9, 10},
-  {0, 1, 4, 5, 7, 8, 10},
-  {0, 1, 4, 5, 7, 8, 11}
+const uint8_t modes[3][7] = {
+  {0, 2, 3, 5, 7, 9, 10}, //dorian
+  {0, 1, 3, 5, 7, 8, 10}, //phrygian
+  {0, 2, 3, 5, 7, 8, 10} //aeolian
+  //{0, 1, 4, 5, 7, 8, 10},
+  //{0, 1, 4, 5, 7, 8, 11}
 };
 
 const uint8_t notedurs[6] = {1, 2, 3, 4, 6, 8};
@@ -155,7 +155,7 @@ void generateTheme(uint8_t* buf)
   ptr_bass=0;
   bassctr=0;
   dur_theme=0;
-  mode=RNG%5;
+  mode=RNG%3;
   key=RNG%12;
   semiq=RNG%128+128;
 
@@ -165,12 +165,12 @@ void generateTheme(uint8_t* buf)
   //writerest(theme, &ptr, (uint16_t)semiq * 8);
 
   //generate theme
-  note = 12 + 2 * (RNG % 3);
+  note = 7 + 2 * (RNG % 3);
   dur = notedurs[RNG % 6];
 
 
   while(dur_theme < 64) {
-    writenoteon(theme, &ptr, 60 + key + modes[mode][note%12], 0);
+    writenoteon(theme, &ptr, 60 + key + modes[mode][note%7], 0);
     writerest(theme, &ptr, (uint16_t)semiq * dur);
     while(dur > 0) {
       dur_theme++;
@@ -185,8 +185,8 @@ void generateTheme(uint8_t* buf)
               modes[mode][note%12]-modes[mode][j] : 
               modes[mode][j]-modes[mode][note%12]);
           dis=discord[diff];
-          if(j==0)dis/=3;
-          else if(j==3)dis/=2;
+          if(j==0)dis/=2; //50% bias for root note
+          else if(j>1&&j<5)dis-=(dis/4); //25% bias for 3rd,4th,5th degree of current mode
           if(dis<err) {
             err=dis;
             bassnote=modes[mode][j];      
