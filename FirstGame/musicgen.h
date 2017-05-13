@@ -11,17 +11,17 @@
 
 typedef bool boolean;
 
-const uint8_t modes[3][7] = {
-  {0, 2, 3, 5, 7, 9, 10}, //dorian
-  {0, 1, 3, 5, 7, 8, 10}, //phrygian
-  {0, 2, 3, 5, 7, 8, 10} //aeolian
+const uint8_t modes[21] PROGMEM = {
+  0, 2, 3, 5, 7, 9, 10, //dorian
+  0, 1, 3, 5, 7, 8, 10, //phrygian
+  0, 2, 3, 5, 7, 8, 10 //aeolian
   //{0, 1, 4, 5, 7, 8, 10},
   //{0, 1, 4, 5, 7, 8, 11}
 };
 
-const uint8_t notedurs[6] = {1, 2, 3, 4, 6, 8};
+const uint8_t notedurs[6] PROGMEM = {1, 2, 3, 4, 6, 8};
 
-const uint8_t discord[12] = {
+const uint8_t discord[12] PROGMEM = {
     5, //unison
     50, //flat 2
     30, //2nd
@@ -166,30 +166,30 @@ void generateTheme(uint8_t* buf)
 
   //generate theme
   note = 7 + 2 * (RNG % 3);
-  dur = notedurs[RNG % 6];
+  dur = pgm_read_byte_near(notedurs+RNG % 6);
 
 
   while(dur_theme < 64) {
-    writenoteon(theme, &ptr, 60 + key + modes[mode][note%7], 0);
+    writenoteon(theme, &ptr, 60 + key + pgm_read_byte_near(modes+mode*7+note%7), 0);
     writerest(theme, &ptr, (uint16_t)semiq * dur);
     while(dur > 0) {
       dur_theme++;
       dur--;
       bassctr++;
       if(bassctr==4) {
-        bassctr=0;  
+        bassctr=0;
         bassnote=0;
         err=255;
         for(j=0;j<7;j++) {
-          diff=(modes[mode][note%12]>modes[mode][j] ? 
-              modes[mode][note%12]-modes[mode][j] : 
-              modes[mode][j]-modes[mode][note%12]);
-          dis=discord[diff];
+          diff=(pgm_read_byte_near(modes+mode*7+note%7) > pgm_read_byte_near(modes+mode*7+j) ? 
+              pgm_read_byte_near(modes+mode*7+note%7) - pgm_read_byte_near(modes+mode*7+j) : 
+              pgm_read_byte_near(modes+mode*7+j) - pgm_read_byte_near(modes+mode*7+note%7));
+          dis=pgm_read_byte_near(discord+diff);
           if(j==0)dis/=2; //50% bias for root note
           else if(j>1&&j<5)dis-=(dis/4); //25% bias for 3rd,4th,5th degree of current mode
           if(dis<err) {
             err=dis;
-            bassnote=modes[mode][j];      
+            bassnote=pgm_read_byte_near(modes+mode*7+j);      
           }          
         }
         writenoteon(bass, &ptr_bass, 48+key+bassnote, 1);
@@ -199,15 +199,15 @@ void generateTheme(uint8_t* buf)
       }      
     }
     dur_theme += dur;
-    r = random()%14;
+    r = RNG%14;
     if(r<4) note--;
     else if(r<8) note++;
     else if(r<10) note-=2;
     else if(r<12) note+=2;
     else if(r==12) note-=3;
     else if(r==13) note+=3;
-    r = random()%3;
-    if(r==0) dur = notedurs[random() % 6];
+    r = RNG%3;
+    if(r==0) dur = pgm_read_byte_near(notedurs+RNG % 6);
     else if(r==1) dur = 4 - (dur_theme % 4);
     //else if r==2 keep the same duration value
 
