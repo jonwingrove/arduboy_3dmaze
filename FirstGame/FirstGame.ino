@@ -326,7 +326,7 @@ void drawSprite(int xPos, int ssize, int rClip, size_t spriteIdx)
           {
             arduboy.fillRect(ndx,y,(drawTo-ndx)+1,pixelsToNext,1);
           }
-          else if(pixCol == -1)
+          else if(pixCol == 3)
           {
             arduboy.fillRect(ndx,y,(drawTo-ndx)+1,pixelsToNext,0);
           }
@@ -492,8 +492,20 @@ void updatePlayerFireball(GameObject *go)
   else
   {
     // destroy...
+    go->m_type = GAMEOBJECT_WAITFRAMES;
+    go->m_spriteIdx = TEX_EXPLODE;
+    go->m_health = 2;
+  }
+}
+
+void updateWaitFrames(GameObject *go)
+{
+  if(go->m_health == 0)
+  {
+    // destroy...
     go->m_type = 0;
   }
+  go->m_health--;
 }
 
 void updateObject(GameObject *go)
@@ -507,6 +519,9 @@ void updateObject(GameObject *go)
     break;
     case GAMEOBJECT_PLAYER_FIREBALL:
     updatePlayerFireball(go);
+    break;
+    case GAMEOBJECT_WAITFRAMES:
+    updateWaitFrames(go);
     break;
   }
 }
