@@ -15,6 +15,7 @@ class GameObject
     byte m_type;
     byte m_health;
     uint16_t m_direction;
+    byte m_spriteIdx;
 
     AngleSize m_cachedAngleSize;
 };

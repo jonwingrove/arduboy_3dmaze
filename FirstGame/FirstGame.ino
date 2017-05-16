@@ -22,13 +22,19 @@ GameObject m_spriteObjects[MAX_GAMEOBJECTS];
 uint8_t s_musicBuffer[BUFMAX];
 
 byte get_tex(size_t id, int u, int v) {
-  byte dat = pgm_read_byte_near(textures + (id*64) + (v*4) + (u/4));
+  byte dat = pgm_read_byte_near(textures + 1 + (id*65) + (v*4) + (u/4));
   switch(u%4) {
     case 0: return (dat >> 6) & 0x03;
     case 1: return (dat >> 4) & 0x03;
     case 2: return (dat >> 2) & 0x03;
     case 3: return dat & 0x03;
   }  
+}
+
+byte get_clip(size_t id)
+{
+  byte dat = pgm_read_byte_near(textures + (id*65));
+  return dat;
 }
 
 int getMapI(int ix, int iy)
@@ -155,11 +161,13 @@ void setup() {
     memset(&m_spriteObjects[i], 0, sizeof(GameObject));
     m_spriteObjects[i].m_type = 0;
   }
-  //m_spriteObjects[0].m_type = GAMEOBJECT_ENEMY_WALK;
-  //m_spriteObjects[0].m_position = Vec2(fix16_from_float(3.3f),fix16_from_float(3.4f));  
+  m_spriteObjects[0].m_type = GAMEOBJECT_ENEMY_WALK;
+  m_spriteObjects[0].m_position = Vec2(fix16_from_float(3.3f),fix16_from_float(3.4f));  
+  m_spriteObjects[0].m_spriteIdx = TEX_MAN;
 
- // m_spriteObjects[1].m_type = GAMEOBJECT_ENEMY_WALK;
-  //m_spriteObjects[1].m_position = Vec2(fix16_from_float(4.7f),fix16_from_float(2.8f));  
+  m_spriteObjects[1].m_type = GAMEOBJECT_ENEMY_WALK;
+  m_spriteObjects[1].m_position = Vec2(fix16_from_float(4.7f),fix16_from_float(2.8f));  
+  m_spriteObjects[1].m_spriteIdx = TEX_MAN;
 }
 
 void drawShadedPixel(int x, int y, int colM)
@@ -208,7 +216,7 @@ void loop() {
     arduboy.setCursor(0,0);
     
     mapGenerated = genMap();    
-    drawSprite(loading,16,128);
+    drawSprite(loading,16,128,TEX_MAN);
     loading++;
     if(loading > 96)
     {
@@ -249,12 +257,13 @@ void testSin()
 
 int depths[128];
 
-void drawSprite(int xPos, int ssize, int rClip)
+void drawSprite(int xPos, int ssize, int rClip, size_t spriteIdx)
 {
   int startX = xPos-ssize;
   int endX = xPos+ssize;
   int startY = 32-ssize;
   int endY = 32+ssize;
+  int reduce = 0;//get_clip(rClip);
 
   if(endX < 0)
   {
@@ -308,11 +317,11 @@ void drawSprite(int xPos, int ssize, int rClip)
       bool shouldDraw = thisPixelVisible ? (ui != ndui || x == endX-1) : (ndx != x);
       if(shouldDraw)
       {             
-        if(ui < 16 && vi < 16)
+        if(ui < 16-reduce && vi < 16-reduce && ui >= reduce && vi >= reduce)
         {
 
           //int pixCol = pgm_read_byte_near(sprite + (ui+vi*16));
-          int pixCol = get_tex(TEX_MAN, ui, vi);
+          int pixCol = get_tex(spriteIdx, ui, vi);
           if(pixCol == 1)
           {
             arduboy.fillRect(ndx,y,(drawTo-ndx)+1,pixelsToNext,1);
@@ -483,7 +492,7 @@ void updatePlayerFireball(GameObject *go)
   else
   {
     // destroy...
-    go->m_type == 0;
+    go->m_type = 0;
   }
 }
 
@@ -611,7 +620,7 @@ void maingame()
           fix16_t enHeight = fix16_div(F16(16), zte);              
           enHeightI = fix16_to_int(enHeight);
         }
-        drawSprite(xOff,enHeightI,96);
+        drawSprite(xOff,enHeightI,96,m_spriteObjects[i].m_spriteIdx);
       }
     }
     updateObject(&m_spriteObjects[i]);
@@ -696,7 +705,9 @@ void maingame()
       {
         m_spriteObjects[i].m_type = GAMEOBJECT_PLAYER_FIREBALL;
         m_spriteObjects[i].m_position = m_gameState.m_playerPos;
-        m_spriteObjects[i].m_direction = m_gameState.m_playerAngDegrees;        
+        m_spriteObjects[i].m_direction = m_gameState.m_playerAngDegrees;    
+        m_spriteObjects[i].m_spriteIdx = TEX_FIREBALL;        
+        m_gameState.m_timeSincePlayerFire = 0;       
         break;
       }
     }
