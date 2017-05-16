@@ -130,8 +130,9 @@ class GameState
 {
 public:
   Vec2 m_playerPos = Vec2(1.3f,1.4f);  
-  int m_playerAngDegrees = 0;
+  uint16_t m_playerAngDegrees = 0;
   uint32_t seed;
+  uint16_t m_timeSincePlayerFire = 0;
   char worldname[NAMELEN];
 };
 
@@ -152,15 +153,14 @@ void setup() {
   for(int i = 0; i < MAX_GAMEOBJECTS; ++i)
   {
     memset(&m_spriteObjects[i], 0, sizeof(GameObject));
+    m_spriteObjects[i].m_type = 0;
   }
-  m_spriteObjects[0].m_type = 1;
-  m_spriteObjects[0].m_position = Vec2(fix16_from_float(3.3f),fix16_from_float(3.4f));  
+  //m_spriteObjects[0].m_type = GAMEOBJECT_ENEMY_WALK;
+  //m_spriteObjects[0].m_position = Vec2(fix16_from_float(3.3f),fix16_from_float(3.4f));  
 
-  m_spriteObjects[1].m_type = 1;
-  m_spriteObjects[1].m_position = Vec2(fix16_from_float(4.7f),fix16_from_float(2.8f));  
+ // m_spriteObjects[1].m_type = GAMEOBJECT_ENEMY_WALK;
+  //m_spriteObjects[1].m_position = Vec2(fix16_from_float(4.7f),fix16_from_float(2.8f));  
 }
-
-int i = 0;
 
 void drawShadedPixel(int x, int y, int colM)
 {
@@ -193,7 +193,7 @@ void maingame();
 void testSin();
 boolean mapGenerated = false;
 boolean musicGenerated = false;
-int loading = 32;
+byte loading = 32;
 
 void loop() {
   if (!(arduboy.nextFrame()))
@@ -440,18 +440,80 @@ void getAngleDistTo(Vec2* pos, Vec2* viewer, int playerAng, AngleSize* result)
 
 const fix16_t movementSpeed = F16(5);
 
+void updateWalkEnemy(GameObject *go)
+{
+  Vec2 delta = Vec2(fix16_sub(m_gameState.m_playerPos.m_x,go->m_position.m_x),
+    fix16_sub(m_gameState.m_playerPos.m_y,go->m_position.m_y));
+
+  fix16_t sqrMag = fix16_add(fix16_mul(delta.m_x,delta.m_x),fix16_mul(delta.m_y,delta.m_y));
+
+  if(sqrMag < F16(0.5f))
+  {
+    
+  }
+  else
+  {
+    fix16_t distTimesInvSpeed = fix16_mul(fix16_sqrt(sqrMag),F16(10));
+    Vec2 dSpeed = Vec2(fix16_div(delta.m_x,distTimesInvSpeed),fix16_div(delta.m_y,distTimesInvSpeed));
+
+    fix16_t newX = fix16_add(go->m_position.m_x,dSpeed.m_x);
+    fix16_t newY = fix16_add(go->m_position.m_y,dSpeed.m_y);
+
+    if(getMap(newX,newY) == 0)
+    {
+      go->m_position.m_x = newX;
+      go->m_position.m_y = newY;
+    }
+  }
+}
+
+void updatePlayerFireball(GameObject *go)
+{
+  fix16_t sinA = fastSin(go->m_direction);
+  fix16_t cosA = fastCos(go->m_direction);
+
+  fix16_t newX = fix16_add(go->m_position.m_x,fix16_div(cosA, F16(2)));
+  fix16_t newY = fix16_add(go->m_position.m_y,fix16_div(sinA, F16(2)));
+
+  if(getMap(newX,newY) == 0)
+  {
+    go->m_position.m_x = newX;
+    go->m_position.m_y = newY;
+  }
+  else
+  {
+    // destroy...
+    go->m_type == 0;
+  }
+}
+
+void updateObject(GameObject *go)
+{
+  switch(go->m_type)
+  {
+    case GAMEOBJECT_NONE:
+    break;
+    case GAMEOBJECT_ENEMY_WALK:
+    updateWalkEnemy(go);
+    break;
+    case GAMEOBJECT_PLAYER_FIREBALL:
+    updatePlayerFireball(go);
+    break;
+  }
+}
+
 void maingame()
 {
   boolean test = false;
-  int sliceWidth = 2;
+  byte sliceWidth = 2;
 
   HitResult hitresult;
 
-  for(int x = 0; x < 96; x+=sliceWidth)
+  for(byte x = 0; x < 96; x+=sliceWidth)
   {    
-    int angOffsetDegrees = (x-48);
+    int16_t angOffsetDegrees = (x-48);
    
-    int angDegrees = m_gameState.m_playerAngDegrees + angOffsetDegrees;
+    int16_t angDegrees = m_gameState.m_playerAngDegrees + angOffsetDegrees;
 
     castRay(&(m_gameState.m_playerPos), angDegrees, F16(64), &hitresult);
 
@@ -468,7 +530,7 @@ void maingame()
         wallHeightI = fix16_to_int(wallHeight);
       }
       
-      int zInt = fix16_to_int(z);
+      int16_t zInt = fix16_to_int(z);
       depths[x] = wallHeightI;
       depths[x+1] = wallHeightI;
   
@@ -480,19 +542,19 @@ void maingame()
     }
   }
 
-  for(int x = 0; x < MAPW; ++x)
+  for(byte x = 0; x < MAPW; ++x)
   {
-    for(int y= 0; y < MAPH; ++y)
+    for(byte y= 0; y < MAPH; ++y)
     {      
       arduboy.drawPixel(x+96,y,getMapI(x,y));
     }
   }
 
-  int pPosX = fix16_to_int(m_gameState.m_playerPos.m_x);
-  int pPosY = fix16_to_int(m_gameState.m_playerPos.m_y);
-  arduboy.drawPixel(96+pPosX, pPosY, i%2);
+  uint16_t pPosX = fix16_to_int(m_gameState.m_playerPos.m_x);
+  uint16_t pPosY = fix16_to_int(m_gameState.m_playerPos.m_y);
+  arduboy.drawPixel(96+pPosX, pPosY, 1);
 
-  for(int i = 0; i < MAX_GAMEOBJECTS; ++i)
+  for(byte i = 0; i < MAX_GAMEOBJECTS; ++i)
   {
     if(m_spriteObjects[i].m_type != 0)
     {
@@ -503,10 +565,10 @@ void maingame()
     }
   }
 
-  for(int i = 0; i < MAX_GAMEOBJECTS; ++i)
+  for(byte i = 0; i < MAX_GAMEOBJECTS; ++i)
   {
     bool anySwaps = false;
-    for(int j = 0; j < MAX_GAMEOBJECTS-(i+1); ++j)
+    for(byte j = 0; j < MAX_GAMEOBJECTS-(i+1); ++j)
     {
       bool swap = false;
       if(m_spriteObjects[j].m_type == 0 && m_spriteObjects[j+1].m_type != 0)
@@ -535,15 +597,15 @@ void maingame()
     }
   }
 
-  for(int i = 0; i < MAX_GAMEOBJECTS; ++i)
+  for(byte i = 0; i < MAX_GAMEOBJECTS; ++i)
   {
     if(m_spriteObjects[i].m_type != 0)
     {
-      int xOff = 48+(m_spriteObjects[i].m_cachedAngleSize.m_angle);    
+      int16_t xOff = 48+(m_spriteObjects[i].m_cachedAngleSize.m_angle);    
       if(xOff>-32 && xOff<128)
       {
         fix16_t zte = fix16_mul(m_spriteObjects[i].m_cachedAngleSize.m_dist, fastCos(m_spriteObjects[i].m_cachedAngleSize.m_angle));
-        int enHeightI = 32;
+        int16_t enHeightI = 32;
         if(zte > 0)
         {
           fix16_t enHeight = fix16_div(F16(16), zte);              
@@ -552,6 +614,7 @@ void maingame()
         drawSprite(xOff,enHeightI,96);
       }
     }
+    updateObject(&m_spriteObjects[i]);
   }     
 
   //
@@ -625,8 +688,23 @@ void maingame()
       m_gameState.m_playerPos.m_y = newY;
     }    
   }
+  if(arduboy.pressed(B_BUTTON) && m_gameState.m_timeSincePlayerFire > 4)
+  {
+    for(byte i = 0; i < MAX_GAMEOBJECTS; ++i)
+    {
+      if(m_spriteObjects[i].m_type == 0)
+      {
+        m_spriteObjects[i].m_type = GAMEOBJECT_PLAYER_FIREBALL;
+        m_spriteObjects[i].m_position = m_gameState.m_playerPos;
+        m_spriteObjects[i].m_direction = m_gameState.m_playerAngDegrees;        
+        break;
+      }
+    }
+  }
 
-  i = (i+1)%4;
-  arduboy.drawPixel(i,0,1);
+  if(m_gameState.m_timeSincePlayerFire < 255)
+  {
+    m_gameState.m_timeSincePlayerFire++;
+  }
 
 }
