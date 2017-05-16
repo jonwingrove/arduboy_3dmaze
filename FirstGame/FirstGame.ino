@@ -11,152 +11,15 @@
 #include "namegen.h"
 #include "ArduboyPlaytune.h"
 #include "GameObject.h"
-
-#define TEX_MAN 0
-#define TEX_WALL 1
-#define TEX_DOOR 2
-#define TEX_IRON 3
-
+#include "textures.h"
+#include "raycast.h"
 
 Arduboy2 arduboy;
-
-const byte textures[256] PROGMEM = {
-    //TEX_MAN
-0x00, 0x40, 0x01, 0x00, 
-0x00, 0x45, 0x51, 0x00, 
-0x00, 0x55, 0x55, 0x00, 
-0x00, 0x55, 0x55, 0x00, 
-0x00, 0x1a, 0xa4, 0x00, 
-0x00, 0x15, 0x54, 0x00, 
-0x00, 0x16, 0x94, 0x00, 
-0x00, 0x16, 0x90, 0x00, 
-0x00, 0x05, 0x50, 0x00, 
-0x00, 0x15, 0x54, 0x00, 
-0x00, 0x45, 0x51, 0x00, 
-0x01, 0x45, 0x51, 0x40, 
-0x01, 0x45, 0x51, 0x40, 
-0x00, 0x04, 0x10, 0x00, 
-0x00, 0x04, 0x10, 0x00, 
-0x00, 0x14, 0x14, 0x00, 
-  
-    //TEX_WALL
-    0x15, 0x56, 0x15, 0x56,
-    0x15, 0x56, 0x15, 0x56,
-    0x2a, 0xaa, 0x2a, 0xaa,
-    0x00, 0x00, 0x00, 0x00,    
-    0x56, 0x15, 0x56, 0x15,
-    0x56, 0x15, 0x56, 0x15,
-    0xaa, 0x2a, 0xaa, 0x2a,    
-    0x00, 0x00, 0x00, 0x00,    
-    0x15, 0x56, 0x15, 0x56,
-    0x15, 0x56, 0x15, 0x56,
-    0x2a, 0xaa, 0x2a, 0xaa,
-    0x00, 0x00, 0x00, 0x00,    
-    0x56, 0x15, 0x56, 0x15,
-    0x56, 0x15, 0x56, 0x15,
-    0x56, 0x15, 0x56, 0x15,
-    0xaa, 0x2a, 0xaa, 0x2a,
-
-    //TEX_DOOR
-    0x55, 0x55, 0x55, 0x56,
-    0x2a, 0xaa, 0xaa, 0xa8,
-    0x66, 0xaa, 0xaa, 0x68,
-    0x68, 0xaa, 0xaa, 0x88,
-    0x2a, 0xaa, 0xaa, 0xa8,
-    0x2a, 0xa0, 0x0a, 0xa8,
-    0x2a, 0x80, 0x02, 0xa8,
-    0x2a, 0x00, 0x00, 0xa8,
-    0x2a, 0x00, 0x00, 0xa8,
-    0x68, 0x00, 0x00, 0x28,
-    0x68, 0x00, 0x00, 0x28,
-    0x68, 0x00, 0x00, 0x28,
-    0x68, 0x00, 0x00, 0x28,
-    0x68, 0x00, 0x00, 0x28,
-    0x68, 0x00, 0x00, 0x28,
-    0x68, 0x00, 0x00, 0x28,
-
-
-    //TEX_IRON
-    0x55, 0x55, 0x55, 0x56,
-    0x2a, 0xaa, 0xaa, 0xa8,
-    0x66, 0xaa, 0xaa, 0x68,
-    0x68, 0xaa, 0xaa, 0x88,
-    0x2a, 0xaa, 0xaa, 0xa8,
-    0x2a, 0xaa, 0xaa, 0xa8,
-    0x2a, 0xaa, 0xaa, 0xa8,
-    0x2a, 0xaa, 0xaa, 0xa8,
-    0x2a, 0xaa, 0xaa, 0xa8,
-    0x2a, 0xaa, 0xaa, 0xa8,
-    0x2a, 0xaa, 0xaa, 0xa8,
-    0x2a, 0xaa, 0xaa, 0xa8,
-    0x66, 0xaa, 0xaa, 0x68,
-    0x68, 0xaa, 0xaa, 0x88,
-    0x2a, 0xaa, 0xaa, 0xa8,
-    0x2a, 0xaa, 0xaa, 0xa8
-   
-    
-};
 
 #define MAX_GAMEOBJECTS 10
 
 GameObject m_spriteObjects[MAX_GAMEOBJECTS];
-
-#define MAX_DIST F16(9999);
 uint8_t s_musicBuffer[BUFMAX];
-
-class HitResult
-{
-  public:
-    fix16_t m_finalHitDistance;
-    fix16_t m_hitX;
-    fix16_t m_hitY;
-    bool m_isVertical;
-    bool m_hit;
-};
-
-class VecStep
-{
-  public:
-    fix16_t m_x;
-    fix16_t m_y;
-    fix16_t m_lengthSquared;
-
-    fix16_t m_riseDivRunn;
-    bool m_inverted;
-    fix16_t m_runn;
-
-    void reset(fix16_t rise, fix16_t runn, fix16_t x, fix16_t y, bool inverted)
-    {
-      if (runn == 0)
-      {
-        m_runn = 0;
-        m_lengthSquared = MAX_DIST;
-      }
-      else
-      {
-        m_runn = runn;
-        m_riseDivRunn = fix16_div(rise, runn);
-        m_inverted = inverted;
-        update(x,y);        
-      }
-    }
-
-    void update(fix16_t x, fix16_t y)
-    {
-        if(m_runn != 0)
-        {
-          fix16_t dx = m_runn > 0 ? 
-          fix16_sub(fix16_floor(fix16_add(x, fix16_one)), x) : 
-          fix16_sub(fix16_ceil(fix16_sub(x, fix16_one)), x);
-          
-          fix16_t dy = fix16_mul(dx, m_riseDivRunn);
-  
-          m_x = m_inverted ? fix16_add(y, dy) : fix16_add(x, dx);
-          m_y = m_inverted ? fix16_add(x, dx) : fix16_add(y, dy);
-          m_lengthSquared = fix16_add(fix16_mul(dx, dx), fix16_mul(dy, dy));
-        }
-    }
-};
 
 byte get_tex(size_t id, int u, int v) {
   byte dat = pgm_read_byte_near(textures + (id*64) + (v*4) + (u/4));
@@ -168,40 +31,6 @@ byte get_tex(size_t id, int u, int v) {
   }  
 }
 
-
-fix16_t fastSin(int angDegrees)
-{
-  if(angDegrees < 0)
-  {
-    angDegrees+=360;
-  }
-  if(angDegrees > 360)
-  {
-    angDegrees-=360;
-  }
-  if(angDegrees > 180)
-  {
-    return fix16_sub(0,pgm_read_word_near(sinTab +(angDegrees)%180));
-  }
-  else
-  {
-    return pgm_read_word_near(sinTab +(angDegrees)%180);
-  }
-}
-
-fix16_t fastCos(int angDegrees)
-{
-  return fastSin(angDegrees+90);
-}
-
-fix16_t slowSqrt(fix16_t val)
-{
-  float v = fix16_to_float(val);
-  float sqr = sqrt(v);
-  return fix16_from_float(sqr);
-}
-
-
 int getMapI(int ix, int iy)
 {
   if (ix < 0 || iy < 0 || ix >= MAPW || iy >= MAPH)
@@ -210,7 +39,7 @@ int getMapI(int ix, int iy)
   }
   else
   {
-    return get_map(ix,iy,map_0);//  //pgm_read_byte_near(maze +(ix + (iy * mazeSize)));
+    return get_map(ix,iy,map_0);
   }
 }
 
@@ -297,11 +126,16 @@ void castRay(Vec2* pos, int angle, fix16_t range, HitResult* hr)
   }
 }
 
-Vec2 m_playerPos = Vec2(1.3f,1.4f);
-int m_playerAngDegrees = 0;
-uint32_t seed;
-char worldname[NAMELEN];
+class GameState
+{
+public:
+  Vec2 m_playerPos = Vec2(1.3f,1.4f);  
+  int m_playerAngDegrees = 0;
+  uint32_t seed;
+  char worldname[NAMELEN];
+};
 
+GameState m_gameState;
 ArduboyPlaytune m_musicPlayer;
 
 void setup() {
@@ -310,11 +144,11 @@ void setup() {
   arduboy.setFrameRate(30);
   arduboy.initRandomSeed();
 
-  seed = random();
-  m_playerPos = Vec2(fix16_from_float(1.3f),fix16_from_float(1.4f));
-  resetMazeGen(seed);
-  resetMusicGen(seed);
-  getname(seed, worldname);
+  m_gameState.seed = random();
+  m_gameState.m_playerPos = Vec2(fix16_from_float(1.3f),fix16_from_float(1.4f));
+  resetMazeGen(m_gameState.seed);
+  resetMusicGen(m_gameState.seed);
+  getname(m_gameState.seed, m_gameState.worldname);
   for(int i = 0; i < MAX_GAMEOBJECTS; ++i)
   {
     memset(&m_spriteObjects[i], 0, sizeof(GameObject));
@@ -322,7 +156,7 @@ void setup() {
   m_spriteObjects[0].m_type = 1;
   m_spriteObjects[0].m_position = Vec2(fix16_from_float(3.3f),fix16_from_float(3.4f));  
 
-    m_spriteObjects[1].m_type = 1;
+  m_spriteObjects[1].m_type = 1;
   m_spriteObjects[1].m_position = Vec2(fix16_from_float(4.7f),fix16_from_float(2.8f));  
 }
 
@@ -381,7 +215,7 @@ void loop() {
       loading=32;
     }
     arduboy.print("DUNGEON OF ");
-    arduboy.print(worldname);
+    arduboy.print(m_gameState.worldname);
   }
   else
   { 
@@ -617,9 +451,9 @@ void maingame()
   {    
     int angOffsetDegrees = (x-48);
    
-    int angDegrees = m_playerAngDegrees + angOffsetDegrees;
+    int angDegrees = m_gameState.m_playerAngDegrees + angOffsetDegrees;
 
-    castRay(&m_playerPos, angDegrees, F16(64), &hitresult);
+    castRay(&(m_gameState.m_playerPos), angDegrees, F16(64), &hitresult);
 
     if(hitresult.m_hit)
     {
@@ -654,15 +488,15 @@ void maingame()
     }
   }
 
-  int pPosX = fix16_to_int(m_playerPos.m_x);
-  int pPosY = fix16_to_int(m_playerPos.m_y);
+  int pPosX = fix16_to_int(m_gameState.m_playerPos.m_x);
+  int pPosY = fix16_to_int(m_gameState.m_playerPos.m_y);
   arduboy.drawPixel(96+pPosX, pPosY, i%2);
 
   for(int i = 0; i < MAX_GAMEOBJECTS; ++i)
   {
     if(m_spriteObjects[i].m_type != 0)
     {
-      getAngleDistTo(&(m_spriteObjects[i].m_position), &m_playerPos,m_playerAngDegrees, &(m_spriteObjects[i].m_cachedAngleSize));     
+      getAngleDistTo(&(m_spriteObjects[i].m_position), &(m_gameState.m_playerPos),m_gameState.m_playerAngDegrees, &(m_spriteObjects[i].m_cachedAngleSize));     
       int ePosX = fix16_to_int(m_spriteObjects[i].m_position.m_x);
       int ePosY = fix16_to_int(m_spriteObjects[i].m_position.m_y);
       arduboy.drawPixel(96+ePosX, ePosY, i%2);
@@ -722,28 +556,28 @@ void maingame()
 
   //
 
-  fix16_t sinA = fastSin(m_playerAngDegrees);
-  fix16_t cosA = fastCos(m_playerAngDegrees);
+  fix16_t sinA = fastSin(m_gameState.m_playerAngDegrees);
+  fix16_t cosA = fastCos(m_gameState.m_playerAngDegrees);
 
   if(arduboy.pressed(LEFT_BUTTON))
   {
     if(arduboy.pressed(A_BUTTON))
     {
-      fix16_t newX = fix16_add(m_playerPos.m_x,fix16_div(sinA, movementSpeed));
-      fix16_t newY = fix16_sub(m_playerPos.m_y,fix16_div(cosA, movementSpeed));
+      fix16_t newX = fix16_add(m_gameState.m_playerPos.m_x,fix16_div(sinA, movementSpeed));
+      fix16_t newY = fix16_sub(m_gameState.m_playerPos.m_y,fix16_div(cosA, movementSpeed));
   
       if(getMap(newX,newY) == 0)
       {
-        m_playerPos.m_x = newX;
-        m_playerPos.m_y = newY;
+        m_gameState.m_playerPos.m_x = newX;
+        m_gameState.m_playerPos.m_y = newY;
       }    
     }
     else
     {    
-      m_playerAngDegrees -=6;
-      if(m_playerAngDegrees < 0)
+      m_gameState.m_playerAngDegrees -=6;
+      if(m_gameState.m_playerAngDegrees < 0)
       {
-        m_playerAngDegrees+=360;
+        m_gameState.m_playerAngDegrees+=360;
       }
     }
   }
@@ -751,44 +585,44 @@ void maingame()
   {
     if(arduboy.pressed(A_BUTTON))
     {
-      fix16_t newX = fix16_sub(m_playerPos.m_x,fix16_div(sinA, movementSpeed));
-      fix16_t newY = fix16_add(m_playerPos.m_y,fix16_div(cosA, movementSpeed));
+      fix16_t newX = fix16_sub(m_gameState.m_playerPos.m_x,fix16_div(sinA, movementSpeed));
+      fix16_t newY = fix16_add(m_gameState.m_playerPos.m_y,fix16_div(cosA, movementSpeed));
   
       if(getMap(newX,newY) == 0)
       {
-        m_playerPos.m_x = newX;
-        m_playerPos.m_y = newY;
+        m_gameState.m_playerPos.m_x = newX;
+        m_gameState.m_playerPos.m_y = newY;
       }    
     }
     else
     {
-      m_playerAngDegrees +=6;
-      if(m_playerAngDegrees > 360)
+      m_gameState.m_playerAngDegrees +=6;
+      if(m_gameState.m_playerAngDegrees > 360)
       {
-        m_playerAngDegrees-=360;
+        m_gameState.m_playerAngDegrees-=360;
       }
     }
   }  
   if(arduboy.pressed(UP_BUTTON))
   {    
-    fix16_t newX = fix16_add(m_playerPos.m_x,fix16_div(cosA, movementSpeed));
-    fix16_t newY = fix16_add(m_playerPos.m_y,fix16_div(sinA, movementSpeed));
+    fix16_t newX = fix16_add(m_gameState.m_playerPos.m_x,fix16_div(cosA, movementSpeed));
+    fix16_t newY = fix16_add(m_gameState.m_playerPos.m_y,fix16_div(sinA, movementSpeed));
 
     if(getMap(newX,newY) == 0)
     {
-      m_playerPos.m_x = newX;
-      m_playerPos.m_y = newY;
+      m_gameState.m_playerPos.m_x = newX;
+      m_gameState.m_playerPos.m_y = newY;
     }    
   }
   if(arduboy.pressed(DOWN_BUTTON))
   {
-    fix16_t newX = fix16_sub(m_playerPos.m_x,fix16_div(cosA, movementSpeed));
-    fix16_t newY = fix16_sub(m_playerPos.m_y,fix16_div(sinA, movementSpeed));
+    fix16_t newX = fix16_sub(m_gameState.m_playerPos.m_x,fix16_div(cosA, movementSpeed));
+    fix16_t newY = fix16_sub(m_gameState.m_playerPos.m_y,fix16_div(sinA, movementSpeed));
 
     if(getMap(newX,newY) == 0)
     {
-      m_playerPos.m_x = newX;
-      m_playerPos.m_y = newY;
+      m_gameState.m_playerPos.m_x = newX;
+      m_gameState.m_playerPos.m_y = newY;
     }    
   }
 

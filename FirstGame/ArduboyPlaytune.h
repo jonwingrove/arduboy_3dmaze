@@ -1,3 +1,5 @@
+// MODIFIED FOR 3D MAZE GAME- no longer plays from PROGMEM, but from RAM
+
 /**
  * @file ArduboyPlaytune.h
  * \brief An Arduino library that plays a one or two part musical score and
