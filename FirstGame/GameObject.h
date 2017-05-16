@@ -14,7 +14,7 @@ class GameObject
     Vec2 m_position;
     byte m_type;
     byte m_health;
-    uint16_t m_direction;
+    int16_t m_direction;
     byte m_spriteIdx;
 
     AngleSize m_cachedAngleSize;

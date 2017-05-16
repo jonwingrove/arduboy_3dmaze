@@ -16,7 +16,7 @@
 
 Arduboy2 arduboy;
 
-#define MAX_GAMEOBJECTS 10
+#define MAX_GAMEOBJECTS 5
 
 GameObject m_spriteObjects[MAX_GAMEOBJECTS];
 uint8_t s_musicBuffer[BUFMAX];
@@ -136,7 +136,7 @@ class GameState
 {
 public:
   Vec2 m_playerPos = Vec2(1.3f,1.4f);  
-  uint16_t m_playerAngDegrees = 0;
+  int16_t m_playerAngDegrees = 0;
   uint32_t seed;
   uint16_t m_timeSincePlayerFire = 0;
   char worldname[NAMELEN];
@@ -263,7 +263,7 @@ void drawSprite(int xPos, int ssize, int rClip, size_t spriteIdx)
   int endX = xPos+ssize;
   int startY = 32-ssize;
   int endY = 32+ssize;
-  int reduce = 0;//get_clip(rClip);
+  int reduce = get_clip(spriteIdx);
 
   if(endX < 0)
   {
@@ -511,14 +511,12 @@ void updateObject(GameObject *go)
   }
 }
 
+#define SLICE_WIDTH 2
+// keep this permanently...
+HitResult hitresult;
 void maingame()
 {
-  boolean test = false;
-  byte sliceWidth = 2;
-
-  HitResult hitresult;
-
-  for(byte x = 0; x < 96; x+=sliceWidth)
+  for(byte x = 0; x < 96; x+=SLICE_WIDTH)
   {    
     int16_t angOffsetDegrees = (x-48);
    
@@ -547,7 +545,7 @@ void maingame()
       fix16_t tcX = (part & 0x0000FFFF) * 16;
       
       //drawShadedBox(x,32-wallHeightI,x+sliceWidth,32+wallHeightI,zInt);
-      drawWallSlice(x,32-wallHeightI,x+sliceWidth,32+wallHeightI,tcX,zInt/3,&hitresult);
+      drawWallSlice(x,32-wallHeightI,x+SLICE_WIDTH,32+wallHeightI,tcX,zInt/3,&hitresult);
     }
   }
 
