@@ -140,10 +140,30 @@ public:
   uint32_t seed;
   uint16_t m_timeSincePlayerFire = 0;
   char worldname[NAMELEN];
+  uint8_t level = 0;
+  bool incLevel = false;    //player has just exited a level, go to next one
 };
+
+boolean mapGenerated = false;
+boolean musicGenerated = false;
+byte loading = 32;
 
 GameState m_gameState;
 ArduboyPlaytune m_musicPlayer;
+
+void startLevel() {
+  //setup on game start or level change  
+  m_gameState.m_playerPos = Vec2(fix16_from_float(1.3f),fix16_from_float(1.4f));
+  resetMazeGen((m_gameState.seed & 0xffffff00) + m_gameState.level);
+  resetMusicGen((m_gameState.seed & 0xffffff00) + m_gameState.level);
+  m_gameState.incLevel = false;
+  mapGenerated = false;
+  musicGenerated = false;
+  loading=32;
+  m_gameState.m_playerPos = Vec2(fix16_from_float(1.3f),fix16_from_float(1.4f));
+  m_musicPlayer.stopScore();
+  
+}
 
 void setup() {
   // put your setup code here, to run once:
@@ -152,10 +172,10 @@ void setup() {
   arduboy.initRandomSeed();
 
   m_gameState.seed = random();
-  m_gameState.m_playerPos = Vec2(fix16_from_float(1.3f),fix16_from_float(1.4f));
-  resetMazeGen(m_gameState.seed);
-  resetMusicGen(m_gameState.seed);
   getname(m_gameState.seed, m_gameState.worldname);
+
+  startLevel();
+
   for(int i = 0; i < MAX_GAMEOBJECTS; ++i)
   {
     memset(&m_spriteObjects[i], 0, sizeof(GameObject));
@@ -199,14 +219,16 @@ void fillRectShaded(int x, int y, int w, int h)
 
 void maingame();
 void testSin();
-boolean mapGenerated = false;
-boolean musicGenerated = false;
-byte loading = 32;
 
 void loop() {
   if (!(arduboy.nextFrame()))
   {
     return;
+  }
+
+  if(m_gameState.incLevel) {
+    m_gameState.level++;  
+    startLevel();
   }
 
   arduboy.clear();
@@ -224,6 +246,8 @@ void loop() {
     }
     arduboy.print("DUNGEON OF ");
     arduboy.print(m_gameState.worldname);
+    arduboy.print("\nLEVEL ");
+    arduboy.print(m_gameState.level + 1);
   }
   else
   { 
@@ -693,7 +717,12 @@ void maingame()
     fix16_t newX = fix16_add(m_gameState.m_playerPos.m_x,fix16_div(cosA, movementSpeed));
     fix16_t newY = fix16_add(m_gameState.m_playerPos.m_y,fix16_div(sinA, movementSpeed));
 
-    if(getMap(newX,newY) == 0)
+    //check for exit thru door
+    int ix = fix16_to_int(fix16_floor(newX));
+    int iy = fix16_to_int(fix16_floor(newY));
+  
+    if(ix==(MAPW-3)&&iy==(MAPH-1)) m_gameState.incLevel = true;
+    else if(getMapI(ix, iy) == 0)
     {
       m_gameState.m_playerPos.m_x = newX;
       m_gameState.m_playerPos.m_y = newY;
